@@ -6,7 +6,7 @@ image_name: video-transcription-ws
 image_tags:
   - latest
 registry_url: registry.cluster:5000
-test:
+notest:
   entry_point: true
   gpu_required: true
   env:

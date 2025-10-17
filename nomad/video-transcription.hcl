@@ -1,12 +1,22 @@
 job "video-transcription" {
-  datacenters = ["dc1"]
+  datacenters = ["cluster"]
   group "service" {
+
+    network {
+         mode = "host"
+         port "http" {
+         to = 8000
+       }
+    }
+
+
     task "server" {
       driver = "docker"
-      
+
+
+
       config {
         image = "video-transcription:latest"
-        ports = ["http"]
         volumes = [
           "/tmp:/tmp",
         ]
@@ -19,17 +29,12 @@ job "video-transcription" {
         AWS_REGION            = "${AWS_REGION}"
         
         # Consul Configuration
-        CONSUL_HOST           = "${CONSUL_HOST}"
-        CONSUL_PORT           = "${CONSUL_PORT}"
+        CONSUL_HOST           = "consul.service.consul"
+        CONSUL_PORT           = "8500"
         
         # Application Configuration
         APP_HOST              = "0.0.0.0"
         APP_PORT              = "8000"
-      }
-      
-      resources {
-        cpu    = 500
-        memory = 512
       }
       
       service {
@@ -42,6 +47,12 @@ job "video-transcription" {
           interval = "10s"
           timeout  = "2s"
         }
+
+       tags = [
+        "video-transcription",
+        "",
+        "urlprefix-/build strip=/build"
+      ]
       }
     }
     
@@ -49,24 +60,19 @@ job "video-transcription" {
       driver = "docker"
       
       config {
-        image = "alpine:latest"
-        command = "/bin/sh"
-        args = [
-          "-c",
-          "mkdir -p /tmp && chmod 777 /tmp"
-        ]
+        image = "registry.cluster:5000/video-transcription-ws:latest"
       }
       
       resources {
-        cpu    = 100
-        memory = 64
+        cpu    = 4000
+        memory = 8192
       }
     }
   }
   
-  constraint {
-    attribute = "$${attr.kernel.name}"
-    operator  = "contains"
-    value     = "linux"
-  }
+  #constraint {
+  #  attribute = "$${attr.kernel.name}"
+  #  operator  = "contains"
+  #  value     = "linux"
+  #}
 }
