@@ -1,6 +1,18 @@
 job "video-transcription" {
   datacenters = ["cluster"]
+
+  vault {
+    policies = ["transcription-policy"]
+  }
+
   group "service" {
+
+    # Target nodes with GPU capability
+    constraint {
+      attribute = "${meta.gpu-capable}"
+      value     = "true"
+    }
+
 
     network {
          mode = "host"
@@ -16,17 +28,18 @@ job "video-transcription" {
 
 
       config {
-        image = "video-transcription:latest"
-        volumes = [
-          "/tmp:/tmp",
-        ]
+        image = "registry.cluster:5000/video-transcription-ws:4af3f1eb-2000-4243-aa96-ea2072611486"
+        #volumes = [
+        #  "/tmp:/tmp",
+        #]
       }
       
       env {
         # AWS Configuration
         AWS_ACCESS_KEY_ID     = "${AWS_ACCESS_KEY_ID}"
         AWS_SECRET_ACCESS_KEY = "${AWS_SECRET_ACCESS_KEY}"
-        AWS_REGION            = "${AWS_REGION}"
+        AWS_REGION            = "us-east-1"
+	S3_ENDPOINT = "http://cluster00.cluster"
         
         # Consul Configuration
         CONSUL_HOST           = "consul.service.consul"
@@ -36,7 +49,32 @@ job "video-transcription" {
         APP_HOST              = "0.0.0.0"
         APP_PORT              = "8000"
       }
-      
+
+      # Vault template for AWS credentials
+      template {
+        data = <<EOF
+{{ with secret "secret/data/aws/transcription" }}
+AWS_ACCESS_KEY_ID = "{{ .Data.data.access_key }}"
+AWS_SECRET_ACCESS_KEY = "{{ .Data.data.secret_key }}"
+{{ end }}
+EOF
+        destination = "secrets/aws.env"
+        env         = true
+      }
+
+      # Optional: Vault template for HuggingFace token
+      template {
+        data = <<EOF
+{{ with secret "secret/data/hf/transcription" }}
+HF_TOKEN = "{{ .Data.data.token }}"
+{{ end }}
+EOF
+        destination = "secrets/hf.env"
+        env         = true
+      }
+
+
+
       service {
         name = "video-transcription"
         port = "http"
@@ -56,23 +94,19 @@ job "video-transcription" {
       }
     }
     
-    task "init" {
-      driver = "docker"
-      
-      config {
-        image = "registry.cluster:5000/video-transcription-ws:latest"
-      }
-      
-      resources {
-        cpu    = 4000
-        memory = 8192
-      }
-    }
+#    task "init" {
+#      driver = "docker"
+#      
+#      config {
+#        image = "registry.cluster:5000/video-transcription-ws:4af3f1eb-2000-4243-aa96-ea2072611486"
+#      }
+#      
+#      resources {
+#        cpu    = 4000
+#        memory = 8192
+#      }
+#    }
   }
   
-  #constraint {
-  #  attribute = "$${attr.kernel.name}"
-  #  operator  = "contains"
-  #  value     = "linux"
-  #}
+
 }
