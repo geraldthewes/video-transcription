@@ -1,20 +1,26 @@
 import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 import logging
+import os
 
 from src.config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def get_s3_client():
+def get_s3_client(endpoint_url=None):
     """Initializes and returns a boto3 S3 client."""
     try:
+        # Use the provided endpoint URL or fall back to default S3
+        if endpoint_url is None:
+            endpoint_url = os.getenv("S3_ENDPOINT")
+        
         s3_client = boto3.client(
             "s3",
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
             region_name=AWS_REGION,
+            endpoint_url=endpoint_url,
         )
         return s3_client
     except (NoCredentialsError, PartialCredentialsError):
