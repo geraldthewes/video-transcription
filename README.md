@@ -143,12 +143,12 @@ uvicorn src.main:app --host 0.0.0.0 --port 8000
 
 ### Using the Transcribe Script
 
-The `scripts/transcribe.py` script provides a command-line interface for transcribing audio files from S3.
+The `scripts/transcribe.py` script provides a command-line interface for transcribing audio files from S3 by calling the transcription service API.
 
 #### Usage
 
 ```bash
-python scripts/transcribe.py --input-s3-path "s3://bucket-name/input-file.mp3" --output-s3-path "s3://bucket-name/output-file.txt"
+python scripts/transcribe.py --service-url "http://localhost:8000" --input-s3-path "s3://bucket-name/input-file.mp3" --output-s3-path "s3://bucket-name/output-file.txt"
 ```
 
 #### Requirements
@@ -160,11 +160,10 @@ pip install -r scripts/requirements.txt
 
 #### Features
 
-- Downloads audio file from S3 input path
-- Initiates transcription process (simulated in this version)
-- Uploads transcription result to S3 output path
+- Makes HTTP request to transcription service API
+- Waits for job completion using Consul callback pattern
 - Reports job ID, success/failure status, and elapsed time
-- Uses Consul callback pattern for job completion notification
+- Supports optional webhook and consul key parameters
 
 ## License
 

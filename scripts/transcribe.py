@@ -2,7 +2,8 @@
 """
 Transcribe audio files using S3 and Consul callbacks.
 This script takes input S3 path and output S3 path as arguments,
-initiates transcription, waits for completion via Consul callback,
+makes a request to the transcription service API,
+waits for completion via Consul callback,
 and reports success/failure with elapsed time.
 """
 
@@ -14,8 +15,7 @@ import boto3
 import os
 import sys
 import json
-import threading
-from queue import Queue
+import requests
 
 # Add src to Python path to import modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -41,7 +41,7 @@ def get_s3_client():
 def parse_s3_uri(s3_uri):
     """Parse S3 URI into bucket and key."""
     if not s3_uri.startswith("s3://"):
-        raise ValueError("Invalid S3 URI. Must start with ' s3://'")
+        raise ValueError("Invalid S3 URI. Must start with 's3://'")
     
     # Remove s3:// prefix
     s3_path = s3_uri[5:]
@@ -56,33 +56,68 @@ def parse_s3_uri(s3_uri):
     
     return bucket, key
 
-def wait_for_consul_callback(job_id, timeout=300):
+def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_url=None, consul_key=None):
     """
-    Simulate waiting for a Consul callback.
-    In a real implementation, this would:
-    1. Register with Consul to listen for callbacks
-    2. Wait for a callback with the job result
-    3. Return success/failure status
+    Call the transcription API endpoint to initiate a transcription job.
     """
-    print(f"Waiting for Consul callback for job {job_id} (timeout: {timeout}s)...")
+    url = f"{service_url}/transcribe"
     
-    # Simulate waiting for callback
+    payload = {
+        "input_s3_path": input_s3_path,
+        "output_s3_path": output_s3_path
+    }
+    
+    # Add optional fields if provided
+    if webhook_url:
+        payload["webhook_url"] = webhook_url
+    if consul_key:
+        payload["consul_key"] = consul_key
+    
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            return response.json().get("job_id")
+        else:
+            print(f"Failed to initiate transcription: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        print(f"Error calling transcription API: {e}")
+        return None
+
+def wait_for_job_completion(service_url, job_id, timeout=300):
+    """
+    Poll the service for job completion status.
+    """
+    url = f"{service_url}/status/{job_id}"
+    
     start_time = datetime.now()
     while (datetime.now() - start_time).seconds < timeout:
-        # Check if job status is updated (simulating callback)
-        job = get_job_status(job_id)
-        if job and job.get("status") in ["completed", "failed"]:
-            return job["status"]
-        
-        # Sleep for a bit before checking again
-        time.sleep(1)
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                status = data.get("status")
+                
+                if status == "completed":
+                    return "completed", data.get("result")
+                elif status == "failed":
+                    return "failed", data.get("result")
+            
+            # Wait before polling again
+            time.sleep(2)
+        except Exception as e:
+            print(f"Error polling job status: {e}")
+            time.sleep(2)
     
-    return "timeout"
+    return "timeout", None
 
 def main():
-    parser = argparse.ArgumentParser(description="Transcribe audio file from S3")
+    parser = argparse.ArgumentParser(description="Transcribe audio file via service API")
+    parser.add_argument("--service-url", required=True, help="URL of the transcription service")
     parser.add_argument("--input-s3-path", required=True, help="Input S3 path (s3://bucket/key)")
     parser.add_argument("--output-s3-path", required=True, help="Output S3 path (s3://bucket/key)")
+    parser.add_argument("--webhook-url", help="Webhook URL for notifications")
+    parser.add_argument("--consul-key", help="Consul key for notifications")
     
     args = parser.parse_args()
     
@@ -94,72 +129,50 @@ def main():
         print(f"Error parsing S3 URIs: {e}")
         return 1
     
-    # Create temporary file for download
-    temp_file = f"/tmp/{uuid.uuid4()}.audio"
+    # Initiate transcription via API
+    print(f"Initiating transcription via service at {args.service_url}...")
+    job_id = call_transcription_api(
+        args.service_url, 
+        args.input_s3_path, 
+        args.output_s3_path,
+        args.webhook_url,
+        args.consul_key
+    )
     
-    # Download file from S3
-    print(f"Downloading audio file from {args.input_s3_path}...")
-    s3_client = get_s3_client()
-    if not s3_client:
-        print("Failed to initialize S3 client")
+    if not job_id:
+        print("Failed to initiate transcription job")
         return 1
-        
-    if not download_file(input_bucket, input_key, temp_file):
-        print("Failed to download audio file")
-        return 1
     
-    print("Audio file downloaded successfully")
+    print(f"Started transcription job: {job_id}")
     
-    # Create job
-    job_id = create_job()
-    print(f"Created transcription job: {job_id}")
-    
-    # Simulate processing time
+    # Wait for job completion
     start_time = datetime.now()
-    print("Starting transcription process...")
+    print("Waiting for job completion...")
     
-    # In a real implementation, you would:
-    # 1. Submit the job to a transcription service
-    # 2. Wait for a Consul callback with the result
-    # 3. Upload the result to S3
+    status, result = wait_for_job_completion(args.service_url, job_id)
     
-    # For demonstration, we'll simulate a successful transcription
-    # In a real scenario, this would be replaced with actual transcription logic
-    time.sleep(2)  # Simulate processing time
-    
-    # Simulate successful completion
     end_time = datetime.now()
     elapsed_time = (end_time - start_time).total_seconds()
     
-    # Create a mock transcription result
-    transcription_result = f"Mock transcription result for job {job_id}\nElapsed time: {elapsed_time:.2f} seconds\n\n"
-    
-    # Save result to temporary file
-    result_file = f"/tmp/{uuid.uuid4()}.txt"
-    with open(result_file, "w") as f:
-        f.write(transcription_result)
-    
-    # Upload result to S3
-    print(f"Uploading transcription result to {args.output_s3_path}...")
-    if not upload_file(result_file, output_bucket, output_key):
-        print("Failed to upload transcription result")
+    if status == "completed":
+        print("Transcription completed successfully!")
+        print(f"Job ID: {job_id}")
+        print(f"Elapsed time: {elapsed_time:.2f} seconds")
+        if result:
+            print(f"Result: {result}")
+        return 0
+    elif status == "failed":
+        print("Transcription failed!")
+        print(f"Job ID: {job_id}")
+        print(f"Elapsed time: {elapsed_time:.2f} seconds")
+        if result:
+            print(f"Error details: {result}")
         return 1
-    
-    # Update job status
-    update_job_status(job_id, "completed")
-    
-    print("Transcription completed successfully!")
-    print(f"Job ID: {job_id}")
-    print(f"Elapsed time: {elapsed_time:.2f} seconds")
-    
-    # Clean up temporary files
-    try:
-        os.remove(temp_file)
-        os.remove(result_file)
-    except OSError:
-        pass
-    
-    return 0
+    else:
+        print("Transcription timed out!")
+        print(f"Job ID: {job_id}")
+        print(f"Elapsed time: {elapsed_time:.2f} seconds")
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())
