@@ -13,5 +13,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application's code into the container
 COPY src/ /app/src
 
-# Run the application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "${APP_PORT}"]
+# Run the application (shell form for env var expansion)
+CMD uvicorn src.main:app --host 0.0.0.0 --port $APP_PORT

@@ -26,7 +26,7 @@ job "video-transcription" {
 
 
       config {
-        image = "registry.cluster:5000/video-transcription-ws:4af3f1eb-2000-4243-aa96-ea2072611486"
+        image = "registry.cluster:5000/video-transcription-ws:6e2c0898-4f01-4971-8ab6-fd451c382e3d"
 	network_mode = "host"  # Align Docker with Nomad's host mode
         #volumes = [
         #  "/tmp:/tmp",
@@ -97,7 +97,7 @@ EOF
 #      driver = "docker"
 #      
 #      config {
-#        image = "registry.cluster:5000/video-transcription-ws:4af3f1eb-2000-4243-aa96-ea2072611486"
+#        image = "registry.cluster:5000/video-transcription-ws:6e2c0898-4f01-4971-8ab6-fd451c382e3d"
 #      }
 #      
 #      resources {
