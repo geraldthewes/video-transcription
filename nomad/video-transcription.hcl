@@ -15,10 +15,8 @@ job "video-transcription" {
 
 
     network {
-         mode = "host"
-         port "http" {
-         to = 8000
-       }
+      mode = "host"
+      port "http" {}  # Dynamic port allocation; no 'static' or 'to'	 
     }
 
 
@@ -29,6 +27,7 @@ job "video-transcription" {
 
       config {
         image = "registry.cluster:5000/video-transcription-ws:4af3f1eb-2000-4243-aa96-ea2072611486"
+	network_mode = "host"  # Align Docker with Nomad's host mode
         #volumes = [
         #  "/tmp:/tmp",
         #]
@@ -47,7 +46,7 @@ job "video-transcription" {
         
         # Application Configuration
         APP_HOST              = "0.0.0.0"
-        APP_PORT              = "8000"
+        APP_PORT              = "${NOMAD_PORT_http}"  # dynamic port here
       }
 
       # Vault template for AWS credentials
@@ -89,7 +88,7 @@ EOF
        tags = [
         "video-transcription",
         "",
-        "urlprefix-/build strip=/build"
+        "urlprefix-/transcribe strip=/transcribe"
       ]
       }
     }
