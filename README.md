@@ -148,7 +148,7 @@ The `scripts/transcribe.py` script provides a command-line interface for transcr
 #### Usage
 
 ```bash
-python scripts/transcribe.py --service-url "http://localhost:8000" --input-s3-path "s3://bucket-name/input-file.mp3" --output-s3-path "s3://bucket-name/output-file.txt"
+python scripts/transcribe.py --service-url "fabio.service.consul:9999" --input-s3-path "s3://bucket-name/input-file.mp3" --output-s3-path "s3://bucket-name/output-file.txt"
 ```
 
 #### Requirements
@@ -164,6 +164,7 @@ pip install -r scripts/requirements.txt
 - Waits for job completion using Consul callback pattern
 - Reports job ID, success/failure status, and elapsed time
 - Supports optional webhook and consul key parameters
+- Handles service URLs with load balancer configurations
 
 #### Troubleshooting
 
@@ -172,6 +173,15 @@ If you encounter import errors, make sure you're running the script from the pro
 cd /media/gerald/SSDT71/gerald/video-transcription
 python scripts/transcribe.py --help
 ```
+
+#### Service URL Format
+
+The script accepts service URLs in various formats:
+- Standard: `http://localhost:8000`
+- Without scheme: `fabio.service.consul:9999`
+- With path: `fabio.service.consul:9999/transcribe`
+
+The script automatically normalizes URLs to ensure proper API endpoint construction.
 
 ## License
 

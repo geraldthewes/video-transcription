@@ -59,11 +59,32 @@ def parse_s3_uri(s3_uri):
     
     return bucket, key
 
+def normalize_service_url(service_url):
+    """
+    Normalize service URL to ensure proper format for HTTP requests.
+    Handles cases where URL might include path components.
+    """
+    # Remove trailing slashes
+    service_url = service_url.rstrip('/')
+    
+    # If no scheme is present, assume HTTP
+    if not service_url.startswith(('http://', 'https://')):
+        service_url = f"http://{service_url}"
+    
+    # Ensure the URL ends with /transcribe for proper API endpoint
+    if not service_url.endswith('/transcribe'):
+        if '/transcribe' not in service_url:
+            service_url = f"{service_url}/transcribe"
+    
+    return service_url
+
 def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_url=None, consul_key=None):
     """
     Call the transcription API endpoint to initiate a transcription job.
     """
-    url = f"{service_url}/transcribe"
+    # Normalize the service URL
+    normalized_url = normalize_service_url(service_url)
+    url = f"{normalized_url}"
     
     payload = {
         "input_s3_path": input_s3_path,
@@ -91,7 +112,15 @@ def wait_for_job_completion(service_url, job_id, timeout=300):
     """
     Poll the service for job completion status.
     """
-    url = f"{service_url}/status/{job_id}"
+    # Normalize the service URL for status endpoint
+    normalized_url = normalize_service_url(service_url)
+    # Remove /transcribe from the URL to get base URL for status endpoint
+    if normalized_url.endswith('/transcribe'):
+        base_url = normalized_url[:-len('/transcribe')]
+    else:
+        base_url = normalized_url
+    
+    url = f"{base_url}/status/{job_id}"
     
     start_time = datetime.now()
     while (datetime.now() - start_time).seconds < timeout:
@@ -116,7 +145,7 @@ def wait_for_job_completion(service_url, job_id, timeout=300):
 
 def main():
     parser = argparse.ArgumentParser(description="Transcribe audio file via service API")
-    parser.add_argument("--service-url", required=True, help="URL of the transcription service")
+    parser.add_argument("--service-url", required=True, help="URL of the transcription service (e.g., fabio.service.consul:9999)")
     parser.add_argument("--input-s3-path", required=True, help="Input S3 path (s3://bucket/key)")
     parser.add_argument("--output-s3-path", required=True, help="Output S3 path (s3://bucket/key)")
     parser.add_argument("--webhook-url", help="Webhook URL for notifications")
@@ -132,8 +161,11 @@ def main():
         print(f"Error parsing S3 URIs: {e}")
         return 1
     
+    # Normalize service URL for display
+    normalized_service_url = normalize_service_url(args.service_url)
+    
     # Initiate transcription via API
-    print(f"Initiating transcription via service at {args.service_url}...")
+    print(f"Initiating transcription via service at {normalized_service_url}...")
     job_id = call_transcription_api(
         args.service_url, 
         args.input_s3_path, 
