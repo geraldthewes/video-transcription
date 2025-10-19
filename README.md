@@ -165,6 +165,7 @@ pip install -r scripts/requirements.txt
 - Reports job ID, success/failure status, and elapsed time
 - Supports optional webhook and consul key parameters
 - Handles service URLs with load balancer configurations
+- Includes debug mode for troubleshooting
 
 #### Troubleshooting
 
@@ -172,6 +173,13 @@ If you encounter import errors, make sure you're running the script from the pro
 ```bash
 cd /media/gerald/SSDT71/gerald/video-transcription
 python scripts/transcribe.py --help
+```
+
+#### Debug Mode
+
+Use the `--debug` or `-d` flag to enable detailed logging of HTTP requests and responses:
+```bash
+python scripts/transcribe.py --debug --service-url "fabio.service.consul:9999" --input-s3-path "s3://bucket-name/input-file.mp3" --output-s3-path "s3://bucket-name/output-file.txt"
 ```
 
 #### Service URL Format

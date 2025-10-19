@@ -78,7 +78,7 @@ def normalize_service_url(service_url):
     
     return service_url
 
-def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_url=None, consul_key=None):
+def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_url=None, consul_key=None, debug=False):
     """
     Call the transcription API endpoint to initiate a transcription job.
     """
@@ -97,8 +97,17 @@ def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_u
     if consul_key:
         payload["consul_key"] = consul_key
     
+    if debug:
+        print(f"DEBUG: Making POST request to {url}")
+        print(f"DEBUG: Request payload: {payload}")
+    
     try:
         response = requests.post(url, json=payload)
+        if debug:
+            print(f"DEBUG: Response status code: {response.status_code}")
+            print(f"DEBUG: Response headers: {dict(response.headers)}")
+            print(f"DEBUG: Response body: {response.text}")
+        
         if response.status_code == 200:
             return response.json().get("job_id")
         else:
@@ -108,7 +117,7 @@ def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_u
         print(f"Error calling transcription API: {e}")
         return None
 
-def wait_for_job_completion(service_url, job_id, timeout=300):
+def wait_for_job_completion(service_url, job_id, timeout=300, debug=False):
     """
     Poll the service for job completion status.
     """
@@ -122,13 +131,24 @@ def wait_for_job_completion(service_url, job_id, timeout=300):
     
     url = f"{base_url}/status/{job_id}"
     
+    if debug:
+        print(f"DEBUG: Polling status endpoint: {url}")
+    
     start_time = datetime.now()
     while (datetime.now() - start_time).seconds < timeout:
         try:
             response = requests.get(url)
+            if debug:
+                print(f"DEBUG: Status poll response status code: {response.status_code}")
+                if response.status_code != 200:
+                    print(f"DEBUG: Status poll response body: {response.text}")
+            
             if response.status_code == 200:
                 data = response.json()
                 status = data.get("status")
+                
+                if debug:
+                    print(f"DEBUG: Job status: {status}")
                 
                 if status == "completed":
                     return "completed", data.get("result")
@@ -138,7 +158,8 @@ def wait_for_job_completion(service_url, job_id, timeout=300):
             # Wait before polling again
             time.sleep(2)
         except Exception as e:
-            print(f"Error polling job status: {e}")
+            if debug:
+                print(f"DEBUG: Error polling job status: {e}")
             time.sleep(2)
     
     return "timeout", None
@@ -150,6 +171,7 @@ def main():
     parser.add_argument("--output-s3-path", required=True, help="Output S3 path (s3://bucket/key)")
     parser.add_argument("--webhook-url", help="Webhook URL for notifications")
     parser.add_argument("--consul-key", help="Consul key for notifications")
+    parser.add_argument("--debug", "-d", action="store_true", help="Enable debug output")
     
     args = parser.parse_args()
     
@@ -171,7 +193,8 @@ def main():
         args.input_s3_path, 
         args.output_s3_path,
         args.webhook_url,
-        args.consul_key
+        args.consul_key,
+        args.debug
     )
     
     if not job_id:
@@ -184,7 +207,7 @@ def main():
     start_time = datetime.now()
     print("Waiting for job completion...")
     
-    status, result = wait_for_job_completion(args.service_url, job_id)
+    status, result = wait_for_job_completion(args.service_url, job_id, timeout=300, debug=args.debug)
     
     end_time = datetime.now()
     elapsed_time = (end_time - start_time).total_seconds()
