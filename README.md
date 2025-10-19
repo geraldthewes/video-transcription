@@ -165,6 +165,14 @@ pip install -r scripts/requirements.txt
 - Reports job ID, success/failure status, and elapsed time
 - Supports optional webhook and consul key parameters
 
+#### Troubleshooting
+
+If you encounter import errors, make sure you're running the script from the project root directory:
+```bash
+cd /media/gerald/SSDT71/gerald/video-transcription
+python scripts/transcribe.py --help
+```
+
 ## License
 
 MIT

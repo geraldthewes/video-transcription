@@ -17,12 +17,15 @@ import sys
 import json
 import requests
 
-# Add src to Python path to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+# Adjust Python path to include src directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+sys.path.insert(0, project_root)
 
-from config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, CONSUL_HOST, CONSUL_PORT
-from s3 import download_file, upload_file
-from jobs import create_job, get_job_status, update_job_status
+# Import modules after adjusting path
+from src.config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, CONSUL_HOST, CONSUL_PORT
+from src.s3 import download_file, upload_file
+from src.jobs import create_job, get_job_status, update_job_status
 
 def get_s3_client():
     """Initialize and return a boto3 S3 client."""
