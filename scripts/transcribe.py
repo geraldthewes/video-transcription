@@ -72,41 +72,6 @@ def normalize_service_url(service_url):
     if not service_url.startswith(('http://', 'https://')):
         service_url = f"http://{service_url}"
     
-    # Simple approach: if it's a URL like "fabio.service.consul:9999/transcribe"
-    # We want to make it "http://fabio.service.consul:9999/transcribe/transcribe"
-    
-    # Check if it's a URL with a path component
-    if '/transcribe' in service_url:
-        # If it already contains /transcribe, we want to make sure it's properly structured
-        # For example: "http://fabio.service.consul:9999/transcribe" 
-        # Should become: "http://fabio.service.consul:9999/transcribe/transcribe"
-        
-        # Remove any trailing /transcribe to avoid duplication
-        if service_url.endswith('/transcribe'):
-            service_url = service_url[:-len('/transcribe')]
-        elif service_url.endswith('/transcribe/'):
-            service_url = service_url[:-len('/transcribe/')]
-    
-    # Ensure we have the correct structure
-    # If it's a simple host:port pattern, we want to add /transcribe at the end
-    if service_url.count('/') == 2 and service_url.startswith('http://'):
-        # This is likely "http://host:port" - we want to make it "http://host:port/transcribe"
-        if not service_url.endswith('/'):
-            service_url += '/transcribe'
-        else:
-            service_url += 'transcribe'
-    elif service_url.count('/') == 3 and service_url.startswith('http://'):
-        # This is likely "http://host:port/path" - we want to make it "http://host:port/path/transcribe"
-        if not service_url.endswith('/'):
-            service_url += '/transcribe'
-        else:
-            service_url += 'transcribe'
-    
-    # Make sure we don't have double slashes
-    if '//' in service_url and not service_url.startswith('http://'):
-        # Fix double slashes
-        service_url = service_url.replace('//', '/')
-    
     return service_url
 
 def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_url=None, consul_key=None, debug=False):
@@ -116,37 +81,34 @@ def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_u
     # Normalize the service URL
     normalized_url = normalize_service_url(service_url)
     
-    # Ensure we have the correct endpoint structure
-    # The final URL should be: http://fabio.service.consul:9999/transcribe/transcribe
-    if normalized_url.endswith('/transcribe'):
-        # We want to make sure we don't have double slashes
-        # Remove the trailing /transcribe and add the proper endpoint
-        base_url = normalized_url[:-len('/transcribe')]
-        url = f"{base_url}/transcribe/transcribe"
-    else:
-        # For a URL like "http://fabio.service.consul:9999", we want to make it "http://fabio.service.consul:9999/transcribe/transcribe"
-        if normalized_url.count('/') == 2 and normalized_url.startswith('http://'):
-            if not normalized_url.endswith('/'):
-                url = f"{normalized_url}/transcribe/transcribe"
-            else:
-                url = f"{normalized_url}transcribe/transcribe"
+    # For load balancer scenarios, we need to preserve the structure
+    # If the URL is like "http://fabio.service.consul:9999/transcribe"
+    # We want to make it "http://fabio.service.consul:9999/transcribe/transcribe"
+    
+    # Extract the base URL part (before /transcribe)
+    base_url = normalized_url
+    if '/transcribe' in normalized_url:
+        # Remove the /transcribe part to get the base URL
+        if normalized_url.endswith('/transcribe'):
+            base_url = normalized_url[:-len('/transcribe')]
         else:
-            url = normalized_url
+            # Find the position of /transcribe and split
+            pos = normalized_url.find('/transcribe')
+            base_url = normalized_url[:pos]
     
-    # Final cleanup to avoid double slashes
-    if '//' in url and not url.startswith('http://'):
-        url = url.replace('//', '/')
+    # Construct the final API endpoint
+    # The final URL should be: http://fabio.service.consul:9999/transcribe/transcribe
+    if base_url.endswith('/'):
+        api_url = f"{base_url}transcribe/transcribe"
+    else:
+        api_url = f"{base_url}/transcribe/transcribe"
     
-    # Make sure we don't have duplicate transcribe paths
-    if url.endswith('/transcribe/transcribe'):
-        # Already correct
-        pass
-    elif url.endswith('/transcribe'):
-        # Need to add another /transcribe
-        url = f"{url}/transcribe"
+    # Ensure we don't have double slashes
+    if '//transcribe' in api_url:
+        api_url = api_url.replace('//transcribe', '/transcribe')
     
     if debug:
-        print(f"DEBUG: Final URL: {url}")
+        print(f"DEBUG: Final API URL: {api_url}")
     
     payload = {
         "input_s3_path": input_s3_path,
@@ -160,11 +122,11 @@ def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_u
         payload["consul_key"] = consul_key
     
     if debug:
-        print(f"DEBUG: Making POST request to {url}")
+        print(f"DEBUG: Making POST request to {api_url}")
         print(f"DEBUG: Request payload: {payload}")
     
     try:
-        response = requests.post(url, json=payload)
+        response = requests.post(api_url, json=payload)
         if debug:
             print(f"DEBUG: Response status code: {response.status_code}")
             print(f"DEBUG: Response headers: {dict(response.headers)}")
@@ -183,30 +145,38 @@ def wait_for_job_completion(service_url, job_id, timeout=300, debug=False):
     """
     Poll the service for job completion status.
     """
-    # Normalize the service URL for status endpoint
+    # Normalize the service URL
     normalized_url = normalize_service_url(service_url)
     
-    # Handle the case where we have a URL ending with /transcribe
-    if normalized_url.endswith('/transcribe'):
-        # Remove the /transcribe to get the base URL
-        base_url = normalized_url[:-len('/transcribe')]
-    else:
-        base_url = normalized_url
+    # Extract the base URL part (before /transcribe)
+    base_url = normalized_url
+    if '/transcribe' in normalized_url:
+        # Remove the /transcribe part to get the base URL
+        if normalized_url.endswith('/transcribe'):
+            base_url = normalized_url[:-len('/transcribe')]
+        else:
+            # Find the position of /transcribe and split
+            pos = normalized_url.find('/transcribe')
+            base_url = normalized_url[:pos]
     
-    # Ensure base_url is properly formatted
+    # Construct the final status endpoint
+    # The status URL should be: http://fabio.service.consul:9999/transcribe/status/{job_id}
     if base_url.endswith('/'):
-        base_url = base_url[:-1]
+        status_url = f"{base_url}transcribe/status/{job_id}"
+    else:
+        status_url = f"{base_url}/transcribe/status/{job_id}"
     
-    # Construct the status endpoint URL
-    url = f"{base_url}/status/{job_id}"
+    # Ensure we don't have double slashes
+    if '//transcribe' in status_url:
+        status_url = status_url.replace('//transcribe', '/transcribe')
     
     if debug:
-        print(f"DEBUG: Polling status endpoint: {url}")
+        print(f"DEBUG: Polling status endpoint: {status_url}")
     
     start_time = datetime.now()
     while (datetime.now() - start_time).seconds < timeout:
         try:
-            response = requests.get(url)
+            response = requests.get(status_url)
             if debug:
                 print(f"DEBUG: Status poll response status code: {response.status_code}")
                 if response.status_code != 200:
