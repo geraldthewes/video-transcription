@@ -62,7 +62,8 @@ def parse_s3_uri(s3_uri):
 def normalize_service_url(service_url):
     """
     Normalize service URL to ensure proper format for HTTP requests.
-    Handles cases where URL might include path components.
+    Handles load balancer configurations where the URL contains both
+    the load balancer endpoint and the service path.
     """
     # Remove trailing slashes
     service_url = service_url.rstrip('/')
@@ -71,10 +72,64 @@ def normalize_service_url(service_url):
     if not service_url.startswith(('http://', 'https://')):
         service_url = f"http://{service_url}"
     
-    # Ensure the URL ends with /transcribe for proper API endpoint
-    if not service_url.endswith('/transcribe'):
-        if '/transcribe' not in service_url:
-            service_url = f"{service_url}/transcribe"
+    # Handle the case where the URL contains both load balancer and service path
+    # e.g., "fabio.service.consul:9999/transcribe" 
+    # This should become "http://fabio.service.consul:9999/transcribe/transcribe"
+    
+    # Check if the URL already contains a path component
+    if '/transcribe' in service_url:
+        # If it already has /transcribe, we need to make sure it's at the right level
+        # For example: "http://fabio.service.consul:9999/transcribe" 
+        # Should become: "http://fabio.service.consul:9999/transcribe/transcribe"
+        if service_url.endswith('/transcribe'):
+            # Already ends with /transcribe, so we need to add another /transcribe
+            # But we should only do this if it's not already a full endpoint
+            pass
+        elif service_url.endswith('/transcribe/'):
+            # Already has the double transcribe path
+            pass
+        else:
+            # If it's just "fabio.service.consul:9999/transcribe" without the trailing slash
+            # We should treat it as a load balancer URL and add the service path
+            if service_url.count('/transcribe') == 1:
+                # This looks like a load balancer URL with a service path
+                # We need to make sure we're pointing to the actual service endpoint
+                # So "http://fabio.service.consul:9999/transcribe" becomes
+                # "http://fabio.service.consul:9999/transcribe/transcribe"
+                pass
+    
+    # For now, let's simplify the approach:
+    # If the URL ends with /transcribe, we want to make sure it's a proper API endpoint
+    # The service URL format is: <load_balancer>:<port>/<service_path>
+    # The actual API endpoint should be: <load_balancer>:<port>/<service_path>/transcribe
+    
+    # If it's a simple URL like "fabio.service.consul:9999", we want to make it:
+    # "http://fabio.service.consul:9999/transcribe/transcribe"
+    
+    # If it's already "fabio.service.consul:9999/transcribe", we want:
+    # "http://fabio.service.consul:9999/transcribe/transcribe"
+    
+    # But we need to be careful about the structure
+    if service_url.endswith('/transcribe'):
+        # Already ends with /transcribe, so we shouldn't add another one
+        pass
+    elif service_url.endswith('/transcribe/'):
+        # Already ends with /transcribe/, so we shouldn't add another one
+        pass
+    elif service_url.endswith('/transcribe/transcribe'):
+        # Already has the double transcribe path
+        pass
+    else:
+        # If it's just a host:port or host:port/path, we want to make sure it's a proper endpoint
+        # For load balancer scenarios, we typically want to add /transcribe at the end
+        if service_url.count('/') == 2 and service_url.startswith('http://'):
+            # This looks like "http://host:port" - add /transcribe
+            if not service_url.endswith('/'):
+                service_url += '/transcribe'
+        elif service_url.count('/') == 3 and service_url.startswith('http://'):
+            # This looks like "http://host:port/path" - add /transcribe to the path
+            if not service_url.endswith('/'):
+                service_url += '/transcribe'
     
     return service_url
 
@@ -84,7 +139,62 @@ def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_u
     """
     # Normalize the service URL
     normalized_url = normalize_service_url(service_url)
-    url = f"{normalized_url}"
+    
+    # Special handling for load balancer URLs
+    # If the URL contains a path that ends with /transcribe, we want to make sure
+    # it points to the actual API endpoint
+    if normalized_url.endswith('/transcribe'):
+        # If it's already ending with /transcribe, we want to make sure it's
+        # pointing to the actual API endpoint
+        # For load balancer scenarios, we want to make sure we're hitting the right endpoint
+        if normalized_url.count('/transcribe') == 1:
+            # This is likely a load balancer URL that needs to be transformed
+            # e.g., "http://fabio.service.consul:9999/transcribe" should become
+            # "http://fabio.service.consul:9999/transcribe/transcribe"
+            # But we need to be careful about the exact structure
+            
+            # Let's simplify this - if it's a load balancer URL with a path,
+            # we want to make sure it's pointing to the actual service endpoint
+            if normalized_url.count('/') == 3 and normalized_url.startswith('http://'):
+                # This is likely "http://host:port/path" - we want to make it "http://host:port/path/transcribe"
+                if not normalized_url.endswith('/'):
+                    normalized_url += '/transcribe'
+            elif normalized_url.count('/') == 2 and normalized_url.startswith('http://'):
+                # This is likely "http://host:port" - we want to make it "http://host:port/transcribe"
+                if not normalized_url.endswith('/'):
+                    normalized_url += '/transcribe'
+    
+    # Final URL construction
+    url = normalized_url
+    
+    # If the URL doesn't end with /transcribe, we need to add it
+    if not url.endswith('/transcribe'):
+        if url.endswith('/'):
+            url += 'transcribe'
+        else:
+            url += '/transcribe'
+    
+    # Ensure we have a proper URL with protocol
+    if not url.startswith(('http://', 'https://')):
+        url = f"http://{url}"
+    
+    # Make sure we don't have double transcribe paths
+    if url.endswith('/transcribe/transcribe'):
+        # Remove the extra transcribe
+        url = url[:-1]  # Remove the last character (the second /)
+        url = url[:-1]  # Remove the second to last character (the second t)
+        url = url[:-1]  # Remove the third to last character (the second r)
+        url = url[:-1]  # Remove the fourth to last character (the second a)
+        url = url[:-1]  # Remove the fifth to last character (the second n)
+        url = url[:-1]  # Remove the sixth to last character (the second s)
+        url = url[:-1]  # Remove the seventh to last character (the second c)
+        url = url[:-1]  # Remove the eighth to last character (the second h)
+        url = url[:-1]  # Remove the ninth to last character (the second e)
+        url = url[:-1]  # Remove the tenth to last character (the second /)
+        url = url + '/transcribe'
+    
+    if debug:
+        print(f"DEBUG: Final URL: {url}")
     
     payload = {
         "input_s3_path": input_s3_path,
@@ -123,12 +233,20 @@ def wait_for_job_completion(service_url, job_id, timeout=300, debug=False):
     """
     # Normalize the service URL for status endpoint
     normalized_url = normalize_service_url(service_url)
-    # Remove /transcribe from the URL to get base URL for status endpoint
+    
+    # Special handling for load balancer URLs
+    # If the URL ends with /transcribe, we want to remove that for the status endpoint
     if normalized_url.endswith('/transcribe'):
+        # Remove the /transcribe part to get the base URL
         base_url = normalized_url[:-len('/transcribe')]
     else:
         base_url = normalized_url
     
+    # Ensure base_url is properly formatted
+    if base_url.endswith('/'):
+        base_url = base_url[:-1]
+    
+    # Construct the status endpoint URL
     url = f"{base_url}/status/{job_id}"
     
     if debug:
