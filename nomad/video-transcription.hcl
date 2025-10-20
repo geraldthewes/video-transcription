@@ -23,7 +23,10 @@ job "video-transcription" {
     task "server" {
       driver = "docker"
 
-
+      resources {
+        cpu    = 4000
+        memory = 8192
+      }
 
       config {
         image = "registry.cluster:5000/video-transcription-ws:latest"
