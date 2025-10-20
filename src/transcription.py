@@ -2,13 +2,16 @@ import os
 import logging
 from faster_whisper import WhisperModel
 
-# Setup logging
+# Setup logging with custom formatting
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, log_level),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Configure specific loggers to avoid excessive logs
+logging.getLogger("faster_whisper").setLevel(logging.WARNING)
 
 def transcribe_audio(audio_path: str) -> str:
     """

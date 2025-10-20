@@ -3,13 +3,16 @@ from datetime import datetime, timedelta
 import logging
 import os
 
-# Setup logging
+# Setup logging with custom formatting
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, log_level),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Configure specific loggers to avoid excessive logs
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 jobs = {}
 

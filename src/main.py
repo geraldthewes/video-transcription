@@ -11,13 +11,18 @@ from src.notifications import send_webhook_notification, send_consul_notificatio
 
 app = FastAPI()
 
-# Setup logging
+# Setup logging with custom formatting
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, log_level),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Configure specific loggers to avoid excessive botocore logs
+logging.getLogger("botocore").setLevel(logging.WARNING)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 class TranscriptionRequest(BaseModel):
     input_s3_path: str
