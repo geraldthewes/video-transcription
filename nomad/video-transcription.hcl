@@ -26,7 +26,7 @@ job "video-transcription" {
 
 
       config {
-        image = "registry.cluster:5000/video-transcription-ws:6f5e74e3-3e08-4cf5-aad7-4e9b0fd4cc21"
+        image = "registry.cluster:5000/video-transcription-ws:latest"
 	network_mode = "host"  # Align Docker with Nomad's host mode
         #volumes = [
         #  "/tmp:/tmp",
@@ -47,6 +47,9 @@ job "video-transcription" {
         # Application Configuration
         APP_HOST              = "0.0.0.0"
         APP_PORT              = "${NOMAD_PORT_http}"  # dynamic port here
+
+	# LOG_LEVEL
+	LOG_LEVEL             = "debug"
       }
 
       # Vault template for AWS credentials
