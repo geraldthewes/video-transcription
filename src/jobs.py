@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
 import logging
+import os
 
 # Setup logging
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
