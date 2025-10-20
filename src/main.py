@@ -46,46 +46,64 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
         logger.debug(f"DEBUG: Processing S3 file - Bucket: {input_bucket_name}, Object: {input_object_name}")
     
     local_audio_path = f"/tmp/{os.path.basename(input_object_name)}"
-    
-    if not download_file(input_bucket_name, input_object_name, local_audio_path):
-        update_job_status(job_id, "failed", {"error": "Failed to download audio file."})
-        logger.error(f"ERROR: Failed to download audio file for job {job_id}")
-        return
-
-    # Log input when in debug mode
-    if log_level == "DEBUG":
-        logger.debug(f"DEBUG: Audio file downloaded - Local path: {local_audio_path}")
-    
-    transcription_result = transcribe_audio(local_audio_path)
-    
-    # Log output when in debug mode
-    if log_level == "DEBUG":
-        logger.debug(f"DEBUG: Transcription result length: {len(transcription_result)} characters")
-    
     local_transcription_path = f"/tmp/{os.path.basename(output_object_name)}"
-    with open(local_transcription_path, "w") as f:
-        f.write(transcription_result)
-
-    if not upload_file(local_transcription_path, output_bucket_name, output_object_name):
-        update_job_status(job_id, "failed", {"error": "Failed to upload transcription."})
-        logger.error(f"ERROR: Failed to upload transcription for job {job_id}")
-        return
-
-    update_job_status(job_id, "completed", {"output_s3_path": output_s3_path})
-    logger.info(f"STATUS: Job {job_id} completed successfully")
-
-    if webhook_url:
-        send_webhook_notification(webhook_url, {"job_id": job_id, "status": "completed", "output_s3_path": output_s3_path})
     
-    if consul_key:
-        send_consul_notification(consul_key, "completed")
+    try:
+        # Download audio file
+        if not download_file(input_bucket_name, input_object_name, local_audio_path):
+            update_job_status(job_id, "failed", {"error": "Failed to download audio file."})
+            logger.error(f"ERROR: Failed to download audio file for job {job_id}")
+            return
 
-    os.remove(local_audio_path)
-    os.remove(local_transcription_path)
-    
-    # Log duration
-    duration = datetime.now() - start_time
-    logger.info(f"DURATION: Job {job_id} took {duration.total_seconds():.2f} seconds")
+        # Log input when in debug mode
+        if log_level == "DEBUG":
+            logger.debug(f"DEBUG: Audio file downloaded - Local path: {local_audio_path}")
+        
+        # Transcribe audio
+        transcription_result = transcribe_audio(local_audio_path)
+        
+        # Log output when in debug mode
+        if log_level == "DEBUG":
+            logger.debug(f"DEBUG: Transcription result length: {len(transcription_result)} characters")
+        
+        # Write transcription to local file
+        with open(local_transcription_path, "w") as f:
+            f.write(transcription_result)
+
+        # Upload transcription
+        if not upload_file(local_transcription_path, output_bucket_name, output_object_name):
+            update_job_status(job_id, "failed", {"error": "Failed to upload transcription."})
+            logger.error(f"ERROR: Failed to upload transcription for job {job_id}")
+            return
+
+        update_job_status(job_id, "completed", {"output_s3_path": output_s3_path})
+        logger.info(f"STATUS: Job {job_id} completed successfully")
+
+        if webhook_url:
+            send_webhook_notification(webhook_url, {"job_id": job_id, "status": "completed", "output_s3_path": output_s3_path})
+        
+        if consul_key:
+            send_consul_notification(consul_key, "completed")
+
+        # Clean up temporary files
+        os.remove(local_audio_path)
+        os.remove(local_transcription_path)
+        
+        # Log duration
+        duration = datetime.now() - start_time
+        logger.info(f"DURATION: Job {job_id} took {duration.total_seconds():.2f} seconds")
+    except Exception as e:
+        # Handle any exceptions during the transcription process
+        update_job_status(job_id, "failed", {"error": f"Job failed: {str(e)}"})
+        logger.error(f"ERROR: Job failed for job {job_id}: {str(e)}")
+        # Clean up temporary files if they exist
+        try:
+            if os.path.exists(local_audio_path):
+                os.remove(local_audio_path)
+            if os.path.exists(local_transcription_path):
+                os.remove(local_transcription_path)
+        except:
+            pass
 
 @app.post("/transcribe")
 async def transcribe(request: TranscriptionRequest, background_tasks: BackgroundTasks):

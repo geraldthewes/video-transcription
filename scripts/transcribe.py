@@ -188,6 +188,7 @@ def wait_for_job_completion(service_url, job_id, timeout=300, debug=False):
                 
                 if debug:
                     print(f"DEBUG: Job status: {status}")
+                    print(f"DEBUG: Full status data: {data}")
                 
                 if status == "completed":
                     return "completed", data.get("result")
@@ -218,8 +219,23 @@ def main():
     try:
         input_bucket, input_key = parse_s3_uri(args.input_s3_path)
         output_bucket, output_key = parse_s3_uri(args.output_s3_path)
+        
+        # Enhanced error checking for problematic bucket names
+        if input_bucket == "s3:" or output_bucket == "s3:":
+            print("ERROR: S3 bucket parsing issue detected!")
+            print(f"  Input S3 path: {args.input_s3_path}")
+            print(f"  Parsed input bucket: '{input_bucket}'")
+            print(f"  Parsed input key: '{input_key}'")
+            print(f"  Output S3 path: {args.output_s3_path}")
+            print(f"  Parsed output bucket: '{output_bucket}'")
+            print(f"  Parsed output key: '{output_key}'")
+            print("  This indicates a problem with S3 URI parsing.")
+            print("  Please verify the S3 URI format and ensure it follows s3://bucket/key pattern.")
+            return 1
+            
     except ValueError as e:
         print(f"Error parsing S3 URIs: {e}")
+        print("Please ensure S3 URIs are formatted correctly as s3://bucket/key")
         return 1
     
     # Normalize service URL for display
@@ -238,6 +254,10 @@ def main():
     
     if not job_id:
         print("Failed to initiate transcription job")
+        print("This could be due to:")
+        print("  - Network connectivity issues")
+        print("  - Service unavailability")
+        print("  - Invalid API endpoint")
         return 1
     
     print(f"Started transcription job: {job_id}")
@@ -251,6 +271,7 @@ def main():
     end_time = datetime.now()
     elapsed_time = (end_time - start_time).total_seconds()
     
+    # Enhanced reporting of results with more detail
     if status == "completed":
         print("Transcription completed successfully!")
         print(f"Job ID: {job_id}")
@@ -264,11 +285,21 @@ def main():
         print(f"Elapsed time: {elapsed_time:.2f} seconds")
         if result:
             print(f"Error details: {result}")
+        else:
+            print("No specific error details available")
+        print("Possible causes:")
+        print("  - Invalid input file")
+        print("  - Processing error in transcription service")
+        print("  - Storage issues")
         return 1
-    else:
+    else:  # timeout
         print("Transcription timed out!")
         print(f"Job ID: {job_id}")
         print(f"Elapsed time: {elapsed_time:.2f} seconds")
+        print("This may indicate:")
+        print("  - Long processing time")
+        print("  - Service unavailability")
+        print("  - Network issues")
         return 1
 
 if __name__ == "__main__":
