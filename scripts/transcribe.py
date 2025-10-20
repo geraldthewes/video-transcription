@@ -50,12 +50,17 @@ def parse_s3_uri(s3_uri):
     s3_path = s3_uri[5:]
     
     # Split into bucket and key
+    # Handle cases where there might be multiple slashes
     parts = s3_path.split("/", 1)
     if len(parts) != 2:
         raise ValueError("Invalid S3 URI format")
     
     bucket = parts[0]
     key = parts[1]
+    
+    # Validate bucket name
+    if not bucket or bucket.strip() == "":
+        raise ValueError("Invalid bucket name in S3 URI")
     
     return bucket, key
 

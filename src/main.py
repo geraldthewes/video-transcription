@@ -38,6 +38,14 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
     start_time = datetime.now()
     logger.info(f"REQUEST: Job ID={job_id}, Input={input_s3_path}, Output={output_s3_path}")
     
+    # Properly parse S3 URIs to extract bucket and key
+    # Remove s3:// prefix if present
+    if input_s3_path.startswith("s3://"):
+        input_s3_path = input_s3_path[5:]  # Remove "s3://"
+    if output_s3_path.startswith("s3://"):
+        output_s3_path = output_s3_path[5:]  # Remove "s3://"
+    
+    # Split to get bucket and key
     input_bucket_name, input_object_name = input_s3_path.split("/", 1)
     output_bucket_name, output_object_name = output_s3_path.split("/", 1)
     
