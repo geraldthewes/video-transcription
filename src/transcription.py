@@ -1,4 +1,14 @@
+import os
+import logging
 from faster_whisper import WhisperModel
+
+# Setup logging
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 def transcribe_audio(audio_path: str) -> str:
     """
@@ -10,6 +20,10 @@ def transcribe_audio(audio_path: str) -> str:
     Returns:
         str: The transcribed text.
     """
+    if log_level == "DEBUG":
+        logger.debug(f"DEBUG: Starting transcription for file: {audio_path}")
+        logger.debug(f"DEBUG: File size: {os.path.getsize(audio_path)} bytes")
+    
     model = WhisperModel("base")
     segments, _ = model.transcribe(audio_path)
     
@@ -28,4 +42,9 @@ def transcribe_audio(audio_path: str) -> str:
     if current_segment is not None:
         aggregated_segments.append(current_segment)
 
-    return "\n".join([f"{s['start']:.2f}-{s['end']:.2f}: {s['text']}" for s in aggregated_segments])
+    result = "\n".join([f"{s['start']:.2f}-{s['end']:.2f}: {s['text']}" for s in aggregated_segments])
+    
+    if log_level == "DEBUG":
+        logger.debug(f"DEBUG: Transcription completed. Result length: {len(result)} characters")
+    
+    return result

@@ -1,6 +1,8 @@
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
 import os
+import logging
+from datetime import datetime
 
 from src.s3 import download_file, upload_file
 from src.transcription import transcribe_audio
@@ -8,6 +10,14 @@ from src.jobs import create_job, get_job_status, update_job_status
 from src.notifications import send_webhook_notification, send_consul_notification
 
 app = FastAPI()
+
+# Setup logging
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 class TranscriptionRequest(BaseModel):
     input_s3_path: str
@@ -19,16 +29,33 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
     """
     Downloads the audio file, transcribes it, and uploads the result.
     """
+    # Log request details
+    start_time = datetime.now()
+    logger.info(f"REQUEST: Job ID={job_id}, Input={input_s3_path}, Output={output_s3_path}")
+    
     input_bucket_name, input_object_name = input_s3_path.split("/", 1)
     output_bucket_name, output_object_name = output_s3_path.split("/", 1)
+    
+    # Log S3 file being processed
+    if log_level == "DEBUG":
+        logger.debug(f"DEBUG: Processing S3 file - Bucket: {input_bucket_name}, Object: {input_object_name}")
     
     local_audio_path = f"/tmp/{os.path.basename(input_object_name)}"
     
     if not download_file(input_bucket_name, input_object_name, local_audio_path):
         update_job_status(job_id, "failed", {"error": "Failed to download audio file."})
+        logger.error(f"ERROR: Failed to download audio file for job {job_id}")
         return
 
+    # Log input when in debug mode
+    if log_level == "DEBUG":
+        logger.debug(f"DEBUG: Audio file downloaded - Local path: {local_audio_path}")
+    
     transcription_result = transcribe_audio(local_audio_path)
+    
+    # Log output when in debug mode
+    if log_level == "DEBUG":
+        logger.debug(f"DEBUG: Transcription result length: {len(transcription_result)} characters")
     
     local_transcription_path = f"/tmp/{os.path.basename(output_object_name)}"
     with open(local_transcription_path, "w") as f:
@@ -36,9 +63,11 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
 
     if not upload_file(local_transcription_path, output_bucket_name, output_object_name):
         update_job_status(job_id, "failed", {"error": "Failed to upload transcription."})
+        logger.error(f"ERROR: Failed to upload transcription for job {job_id}")
         return
 
     update_job_status(job_id, "completed", {"output_s3_path": output_s3_path})
+    logger.info(f"STATUS: Job {job_id} completed successfully")
 
     if webhook_url:
         send_webhook_notification(webhook_url, {"job_id": job_id, "status": "completed", "output_s3_path": output_s3_path})
@@ -48,6 +77,10 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
 
     os.remove(local_audio_path)
     os.remove(local_transcription_path)
+    
+    # Log duration
+    duration = datetime.now() - start_time
+    logger.info(f"DURATION: Job {job_id} took {duration.total_seconds():.2f} seconds")
 
 @app.post("/transcribe")
 async def transcribe(request: TranscriptionRequest, background_tasks: BackgroundTasks):

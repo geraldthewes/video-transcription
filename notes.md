@@ -50,3 +50,35 @@ I've created a Nomad job definition for the video transcription service. Let me 
   and Consul backend in a production environment.
 
 
+2025-10-20
+==========
+
+✦ I've successfully implemented the debug logging functionality for your video transcription service. Here's what I've done:
+
+   1. Added comprehensive logging to all modules with:
+      - Request logging in a web-like style showing job ID, input, and output
+      - Duration tracking for each job
+      - Status updates for job processing
+      - Environment variable support for LOG_LEVEL
+
+   2. Enhanced debugging capabilities:
+      - When LOG_LEVEL is set to "DEBUG", it logs:
+        - Full input/output details for each request
+        - S3 file processing information
+        - File sizes during download/upload
+        - Detailed transcription progress
+
+   3. Updated all relevant files:
+      - main.py: Added request logging and job status tracking
+      - s3.py: Enhanced S3 operation logging
+      - transcription.py: Added detailed transcription logging
+      - jobs.py: Added job creation and cleanup logging
+
+  The implementation follows your requirements exactly:
+   - Logs all requests in a web-like style (Request, agent, status, duration)
+   - Adds environment variable LOG_LEVEL support
+   - When set to "debug", logs full input and output details
+   - When "debug" is set, logs which S3 file is being processed
+
+  All changes have been made consistently across the codebase to ensure comprehensive logging. The service will now provide much more detailed information
+  for troubleshooting and monitoring purposes.

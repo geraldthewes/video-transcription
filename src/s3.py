@@ -5,7 +5,12 @@ import os
 
 from src.config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
 
-logging.basicConfig(level=logging.INFO)
+# Setup logging
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 def get_s3_client(endpoint_url=None):
@@ -34,6 +39,8 @@ def download_file(bucket_name, object_name, file_name):
         try:
             s3_client.download_file(bucket_name, object_name, file_name)
             logger.info(f"File {object_name} downloaded from bucket {bucket_name} to {file_name}.")
+            if log_level == "DEBUG":
+                logger.debug(f"DEBUG: Downloaded file size: {os.path.getsize(file_name)} bytes")
             return True
         except ClientError as e:
             logger.error(f"Failed to download file: {e}")
@@ -50,6 +57,8 @@ def upload_file(file_name, bucket_name, object_name=None):
         try:
             s3_client.upload_file(file_name, bucket_name, object_name)
             logger.info(f"File {file_name} uploaded to bucket {bucket_name} as {object_name}.")
+            if log_level == "DEBUG":
+                logger.debug(f"DEBUG: Uploaded file size: {os.path.getsize(file_name)} bytes")
             return True
         except ClientError as e:
             logger.error(f"Failed to upload file: {e}")
