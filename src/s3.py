@@ -37,35 +37,55 @@ def get_s3_client(endpoint_url=None):
         logger.error("AWS credentials not found.")
         return None
 
-def download_file(bucket_name, object_name, file_name):
-    """Downloads a file from an S3 bucket."""
+def download_file(bucket_name, object_name, file_name, max_retries=3):
+    """Downloads a file from an S3 bucket with retry logic."""
     s3_client = get_s3_client()
     if s3_client:
-        try:
-            s3_client.download_file(bucket_name, object_name, file_name)
-            logger.info(f"File {object_name} downloaded from bucket {bucket_name} to {file_name}.")
-            if log_level == "DEBUG":
-                logger.debug(f"DEBUG: Downloaded file size: {os.path.getsize(file_name)} bytes")
-            return True
-        except ClientError as e:
-            logger.error(f"Failed to download file: {e}")
-            return False
+        for attempt in range(max_retries):
+            try:
+                s3_client.download_file(bucket_name, object_name, file_name)
+                logger.info(f"File {object_name} downloaded from bucket {bucket_name} to {file_name}.")
+                if log_level == "DEBUG":
+                    logger.debug(f"DEBUG: Downloaded file size: {os.path.getsize(file_name)} bytes")
+                return True
+            except ClientError as e:
+                logger.error(f"Failed to download file (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    return False
+            except Exception as e:
+                logger.error(f"Unexpected error downloading file (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    return False
     return False
 
-def upload_file(file_name, bucket_name, object_name=None):
-    """Uploads a file to an S3 bucket."""
+def upload_file(file_name, bucket_name, object_name=None, max_retries=3):
+    """Uploads a file to an S3 bucket with retry logic."""
     if object_name is None:
         object_name = file_name
 
     s3_client = get_s3_client()
     if s3_client:
-        try:
-            s3_client.upload_file(file_name, bucket_name, object_name)
-            logger.info(f"File {file_name} uploaded to bucket {bucket_name} as {object_name}.")
-            if log_level == "DEBUG":
-                logger.debug(f"DEBUG: Uploaded file size: {os.path.getsize(file_name)} bytes")
-            return True
-        except ClientError as e:
-            logger.error(f"Failed to upload file: {e}")
-            return False
+        for attempt in range(max_retries):
+            try:
+                s3_client.upload_file(file_name, bucket_name, object_name)
+                logger.info(f"File {file_name} uploaded to bucket {bucket_name} as {object_name}.")
+                if log_level == "DEBUG":
+                    logger.debug(f"DEBUG: Uploaded file size: {os.path.getsize(file_name)} bytes")
+                return True
+            except ClientError as e:
+                logger.error(f"Failed to upload file (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    return False
+            except Exception as e:
+                logger.error(f"Unexpected error uploading file (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    return False
     return False

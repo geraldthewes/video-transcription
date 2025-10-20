@@ -39,15 +39,37 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
     logger.info(f"REQUEST: Job ID={job_id}, Input={input_s3_path}, Output={output_s3_path}")
     
     # Properly parse S3 URIs to extract bucket and key
-    # Remove s3:// prefix if present
-    if input_s3_path.startswith("s3://"):
-        input_s3_path = input_s3_path[5:]  # Remove "s3://"
-    if output_s3_path.startswith("s3://"):
-        output_s3_path = output_s3_path[5:]  # Remove "s3://"
+    def parse_s3_uri(s3_uri):
+        """Parse S3 URI into bucket and key."""
+        if not s3_uri.startswith("s3://"):
+            raise ValueError(f"Invalid S3 URI: {s3_uri}. Must start with 's3://'")
+        
+        # Remove s3:// prefix
+        s3_path = s3_uri[5:]
+        
+        # Split into bucket and key
+        # Handle cases where there might be multiple slashes
+        parts = s3_path.split("/", 1)
+        if len(parts) != 2:
+            raise ValueError(f"Invalid S3 URI format: {s3_uri}")
+        
+        bucket = parts[0]
+        key = parts[1]
+        
+        # Validate bucket name
+        if not bucket or bucket.strip() == "":
+            raise ValueError(f"Invalid bucket name in S3 URI: {s3_uri}")
+        
+        return bucket, key
     
-    # Split to get bucket and key
-    input_bucket_name, input_object_name = input_s3_path.split("/", 1)
-    output_bucket_name, output_object_name = output_s3_path.split("/", 1)
+    try:
+        # Parse S3 URIs
+        input_bucket_name, input_object_name = parse_s3_uri(input_s3_path)
+        output_bucket_name, output_object_name = parse_s3_uri(output_s3_path)
+    except ValueError as e:
+        logger.error(f"Failed to parse S3 URIs: {e}")
+        update_job_status(job_id, "failed", {"error": f"Failed to parse S3 URIs: {str(e)}"})
+        return
     
     # Log S3 file being processed
     if log_level == "DEBUG":
