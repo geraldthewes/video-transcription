@@ -25,6 +25,9 @@ def send_consul_notification(key, value):
         c.kv.put(key, value)
         logger.info(f"Consul notification sent for key {key}.")
         return True
+    except consul.ConsulException as e:
+        logger.error(f"Consul error when sending notification: {e}")
+        return False
     except Exception as e:
-        logger.error(f"Failed to send Consul notification: {e}")
+        logger.error(f"Unexpected error when sending Consul notification: {e}")
         return False

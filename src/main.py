@@ -118,8 +118,17 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
         if webhook_url:
             send_webhook_notification(webhook_url, {"job_id": job_id, "status": "completed", "output_s3_path": output_s3_path})
         
+        # Standardize consul key format if provided
         if consul_key:
-            send_consul_notification(consul_key, "completed")
+            # If consul_key is not already in the standardized format, we'll use the standard format
+            if not consul_key.startswith("services/video-transcription/"):
+                # Generate a standardized key format
+                standardized_key = f"services/video-transcription/{job_id}"
+                logger.info(f"Standardizing consul key to: {standardized_key}")
+                send_consul_notification(standardized_key, "completed")
+            else:
+                # Use the provided key as-is
+                send_consul_notification(consul_key, "completed")
 
         # Clean up temporary files
         os.remove(local_audio_path)
