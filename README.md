@@ -84,14 +84,15 @@ Initiates a transcription job.
   "input_s3_path": "bucket-name/object-key",
   "output_s3_path": "bucket-name/object-key",
   "webhook_url": "https://example.com/webhook",
-  "consul_key": "service/transcription/job-id"
+  "consul_notification": true
 }
 ```
 
 **Response:**
 ```json
 {
-  "job_id": "job-uuid"
+  "job_id": "job-uuid",
+  "consul_key": "services/video-transcription/job-uuid"
 }
 ```
 
