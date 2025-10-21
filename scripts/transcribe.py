@@ -275,10 +275,9 @@ def main():
     
     # Determine wait method
     if args.wait == "consul":
-        # Use Consul notification method - this is a simplified approach
-        # In a real implementation, this would involve listening for Consul events
-        # For now, we'll simulate it by polling with a delay to show the functionality
-        print("Using Consul notification method (simulated)...")
+        # Use Consul notification method - the server will handle Consul notifications
+        # This is a simplified approach for demonstration purposes
+        print("Using Consul notification method (server-side handling)...")
         # We'll still use the polling approach but note that Consul is selected
         status, result = wait_for_job_completion(
             args.service_url, 
