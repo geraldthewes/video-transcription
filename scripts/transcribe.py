@@ -135,6 +135,8 @@ def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_u
             print(f"DEBUG: Response status code: {response.status_code}")
             print(f"DEBUG: Response headers: {dict(response.headers)}")
             print(f"DEBUG: Response body: {response.text}")
+            # Log the payload being sent
+            print(f"DEBUG: Payload sent: {json.dumps(payload, indent=2)}")
         
         if response.status_code == 200:
             return response.json().get("job_id")
