@@ -294,6 +294,7 @@ def wait_for_job_completion_consul(consul_key, timeout=300, debug=False):
                     print(f"DEBUG: Consul key check - Index: {index}, Data: {data}")
                 
                 # If data is not None, it means the key exists
+                # If data is not None, it means the key exists
                 if data is not None:
                     # Decode the data if it's bytes
                     if isinstance(data, dict) and 'Value' in data:
@@ -305,18 +306,30 @@ def wait_for_job_completion_consul(consul_key, timeout=300, debug=False):
                                 if debug:
                                     print(f"DEBUG: Decoded value: {decoded_value}")
                                 
-                                # Parse the JSON to check status
-                                result_data = json.loads(decoded_value)
-                                status = result_data.get("status")
-                                
-                                if debug:
-                                    print(f"DEBUG: Status from Consul: {status}")
-                                
-                                if status == "completed":
-                                    return "completed", result_data.get("result")
-                                elif status == "failed":
-                                    return "failed", result_data.get("result")
+                                # Check if the value is a simple string like "completed"
+                                if decoded_value.strip() == "completed":
+                                    if debug:
+                                        print("DEBUG: Simple string 'completed' detected")
+                                    return "completed", None
+                                elif decoded_value.strip() == "failed":
+                                    if debug:
+                                        print("DEBUG: Simple string 'failed' detected")
+                                    return "failed", None
+                                else:
+                                    # Parse the JSON to check status
+                                    result_data = json.loads(decoded_value)
+                                    status = result_data.get("status")
+                                    
+                                    if debug:
+                                        print(f"DEBUG: Status from Consul: {status}")
+                                    
+                                    if status == "completed":
+                                        return "completed", result_data.get("result")
+                                    elif status == "failed":
+                                        return "failed", result_data.get("result")
                             except Exception as e:
+                                if debug:
+                                    print(f"DEBUG: Error parsing Consul data: {e}")
                                 if debug:
                                     print(f"DEBUG: Error parsing Consul data: {e}")
                 
