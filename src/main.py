@@ -42,10 +42,9 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
     if webhook_url:
         logger.info(f"WEBHOOK: Job ID={job_id}, Webhook URL={webhook_url}")
     if consul_notification:
-        logger.info(f"CONSOLE: Job ID={job_id}, Consul Notification Enabled")
-        # Log the standardized key that will be used
+        # Generate the standardized key for Consul notification
         standardized_key = f"services/video-transcription/{job_id}"
-        logger.info(f"CONSOLE: Standardized key for job {job_id}: {standardized_key}")
+        logger.info(f"CONSOLE: Job ID={job_id}, Consul Notification Enabled Key={standardized_key}")
     
     # Properly parse S3 URIs to extract bucket and key
     def parse_s3_uri(s3_uri):
