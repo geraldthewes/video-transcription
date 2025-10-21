@@ -38,6 +38,12 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
     start_time = datetime.now()
     logger.info(f"REQUEST: Job ID={job_id}, Input={input_s3_path}, Output={output_s3_path}")
     
+    # Log webhook and consul information
+    if webhook_url:
+        logger.info(f"WEBHOOK: Job ID={job_id}, Webhook URL={webhook_url}")
+    if consul_key:
+        logger.info(f"CONSOLE: Job ID={job_id}, Consul Key={consul_key}")
+    
     # Properly parse S3 URIs to extract bucket and key
     def parse_s3_uri(s3_uri):
         """Parse S3 URI into bucket and key."""
