@@ -63,6 +63,46 @@ def parse_s3_uri(s3_uri):
     
     return bucket, key
 
+def parse_consul_address(consul_http_addr):
+    """
+    Parse the CONSUL_HTTP_ADDR environment variable into host and port.
+    This handles various formats like:
+    - http://10.0.1.12:8500
+    - https://10.0.1.12:8500
+    - 10.0.1.12:8500
+    """
+    if not consul_http_addr:
+        return "localhost", 8500
+    
+    # Handle http:// format
+    if consul_http_addr.startswith("http://"):
+        # Remove "http://" prefix
+        addr = consul_http_addr[7:]
+        if ":" in addr:
+            host, port_str = addr.split(":", 1)
+            return host, int(port_str)
+        else:
+            return addr, 8500
+    
+    # Handle https:// format
+    elif consul_http_addr.startswith("https://"):
+        # Remove "https://" prefix
+        addr = consul_http_addr[8:]
+        if ":" in addr:
+            host, port_str = addr.split(":", 1)
+            return host, int(port_str)
+        else:
+            return addr, 8500
+    
+    # Handle simple host:port format
+    elif ":" in consul_http_addr:
+        host, port_str = consul_http_addr.split(":", 1)
+        return host, int(port_str)
+    
+    # Just host
+    else:
+        return consul_http_addr, 8500
+
 def normalize_service_url(service_url):
     """
     Normalize service URL to ensure proper format for HTTP requests.
@@ -141,7 +181,7 @@ def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_u
             print(f"DEBUG: Payload sent: {json.dumps(payload, indent=2)}")
         
         if response.status_code == 200:
-            return response.json().get("job_id")
+            return response.json()
         else:
             print(f"Failed to initiate transcription: {response.status_code} - {response.text}")
             return None
@@ -149,7 +189,7 @@ def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_u
         print(f"Error calling transcription API: {e}")
         return None
 
-def wait_for_job_completion(service_url, job_id, timeout=300, debug=False):
+def wait_for_job_completion_polling(service_url, job_id, timeout=300, debug=False):
     """
     Poll the service for job completion status.
     """
@@ -212,6 +252,90 @@ def wait_for_job_completion(service_url, job_id, timeout=300, debug=False):
     
     return "timeout", None
 
+def wait_for_job_completion_consul(consul_key, timeout=300, debug=False):
+    """
+    Check Consul key directly for job completion status.
+    """
+    try:
+        # Import consul after ensuring it's available
+        import consul
+        
+        # Try to get Consul configuration from environment
+        # The error suggests the python-consul library has strict requirements
+        # Let's try the most basic approach that should work with most setups
+        try:
+            # Try with just the default Consul client
+            consul_client = consul.Consul()
+            if debug:
+                print("DEBUG: Successfully created Consul client with default settings")
+        except Exception as e:
+            # If that fails, try with explicit localhost
+            if debug:
+                print(f"DEBUG: Failed to create Consul client with default, trying with localhost: {e}")
+            try:
+                # Try with just the host parameter
+                consul_client = consul.Consul(host="localhost")
+                if debug:
+                    print("DEBUG: Successfully created Consul client with localhost")
+            except Exception as e2:
+                # If that also fails, try with just the host
+                if debug:
+                    print(f"DEBUG: Failed to create Consul client with localhost, falling back to just host: {e2}")
+                # Try with just the host parameter
+                consul_client = consul.Consul(host="localhost")
+        
+        start_time = datetime.now()
+        while (datetime.now() - start_time).seconds < timeout:
+            try:
+                # Check if the key exists and has a value
+                index, data = consul_client.kv.get(consul_key)
+                
+                if debug:
+                    print(f"DEBUG: Consul key check - Index: {index}, Data: {data}")
+                
+                # If data is not None, it means the key exists
+                if data is not None:
+                    # Decode the data if it's bytes
+                    if isinstance(data, dict) and 'Value' in data:
+                        value = data['Value']
+                        if value is not None:
+                            # Try to decode the value
+                            try:
+                                decoded_value = value.decode('utf-8')
+                                if debug:
+                                    print(f"DEBUG: Decoded value: {decoded_value}")
+                                
+                                # Parse the JSON to check status
+                                result_data = json.loads(decoded_value)
+                                status = result_data.get("status")
+                                
+                                if debug:
+                                    print(f"DEBUG: Status from Consul: {status}")
+                                
+                                if status == "completed":
+                                    return "completed", result_data.get("result")
+                                elif status == "failed":
+                                    return "failed", result_data.get("result")
+                            except Exception as e:
+                                if debug:
+                                    print(f"DEBUG: Error parsing Consul data: {e}")
+                
+                # Wait before checking again
+                time.sleep(2)
+            except Exception as e:
+                if debug:
+                    print(f"DEBUG: Error checking Consul key: {e}")
+                time.sleep(2)
+        
+        return "timeout", None
+    except Exception as e:
+        print(f"Error initializing Consul client: {e}")
+        # Print more detailed error information
+        import traceback
+        if debug:
+            traceback.print_exc()
+        return "failed", "Failed to initialize Consul client"
+
 def main():
     parser = argparse.ArgumentParser(description="Transcribe audio file via service API")
     parser.add_argument("--service-url", required=True, help="URL of the transcription service (e.g., fabio.service.consul:9999)")
@@ -254,7 +378,7 @@ def main():
     
     # Initiate transcription via API
     print(f"Initiating transcription via service at {normalized_service_url}...")
-    job_id = call_transcription_api(
+    api_response = call_transcription_api(
         args.service_url, 
         args.input_s3_path, 
         args.output_s3_path,
@@ -264,12 +388,20 @@ def main():
         args.debug
     )
     
-    if not job_id:
+    if not api_response:
         print("Failed to initiate transcription job")
         print("This could be due to:")
         print("  - Network connectivity issues")
         print("  - Service unavailability")
         print("  - Invalid API endpoint")
+        return 1
+    
+    # Extract job_id and consul_key from API response
+    job_id = api_response.get("job_id")
+    consul_key = api_response.get("consul_key")
+    
+    if not job_id:
+        print("Failed to get job_id from API response")
         return 1
     
     print(f"Started transcription job: {job_id}")
@@ -280,20 +412,19 @@ def main():
     
     # Determine wait method
     if args.wait == "consul":
-        # Use Consul notification method - the server will handle Consul notifications
-        # Since the server now returns consul_notification instead of requiring consul_key,
-        # we'll still use polling but note that Consul is selected
-        print("Using Consul notification method (server-side handling)...")
-        # We'll still use the polling approach but note that Consul is selected
-        status, result = wait_for_job_completion(
-            args.service_url, 
-            job_id, 
-            timeout=300, 
+        # Use Consul key checking method
+        print("Using Consul key checking method...")
+        if not consul_key:
+            print("Error: Could not retrieve consul_key from API response")
+            return 1
+        status, result = wait_for_job_completion_consul(
+            consul_key,
+            timeout=300,
             debug=args.debug
         )
     else:
         # Use polling method (default)
-        status, result = wait_for_job_completion(
+        status, result = wait_for_job_completion_polling(
             args.service_url, 
             job_id, 
             timeout=300, 
