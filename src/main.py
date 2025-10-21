@@ -28,9 +28,9 @@ class TranscriptionRequest(BaseModel):
     input_s3_path: str
     output_s3_path: str
     webhook_url: str = None
-    consul_key: str = None
+    consul_notification: bool = False
 
-def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, webhook_url: str = None, consul_key: str = None):
+def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, webhook_url: str = None, consul_notification: bool = False):
     """
     Downloads the audio file, transcribes it, and uploads the result.
     """
@@ -41,12 +41,11 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
     # Log webhook and consul information
     if webhook_url:
         logger.info(f"WEBHOOK: Job ID={job_id}, Webhook URL={webhook_url}")
-    if consul_key:
-        logger.info(f"CONSOLE: Job ID={job_id}, Consul Key={consul_key}")
-        # Also log the standardized key if it was standardized
-        if not consul_key.startswith("services/video-transcription/"):
-            standardized_key = f"services/video-transcription/{job_id}"
-            logger.info(f"CONSOLE: Standardized key for job {job_id}: {standardized_key}")
+    if consul_notification:
+        logger.info(f"CONSOLE: Job ID={job_id}, Consul Notification Enabled")
+        # Log the standardized key that will be used
+        standardized_key = f"services/video-transcription/{job_id}"
+        logger.info(f"CONSOLE: Standardized key for job {job_id}: {standardized_key}")
     
     # Properly parse S3 URIs to extract bucket and key
     def parse_s3_uri(s3_uri):
@@ -122,17 +121,10 @@ def process_transcription(job_id: str, input_s3_path: str, output_s3_path: str, 
         if webhook_url:
             send_webhook_notification(webhook_url, {"job_id": job_id, "status": "completed", "output_s3_path": output_s3_path})
         
-        # Standardize consul key format if provided
-        if consul_key:
-            # If consul_key is not already in the standardized format, we'll use the standard format
-            if not consul_key.startswith("services/video-transcription/"):
-                # Generate a standardized key format
-                standardized_key = f"services/video-transcription/{job_id}"
-                logger.info(f"Standardizing consul key to: {standardized_key}")
-                send_consul_notification(standardized_key, "completed")
-            else:
-                # Use the provided key as-is
-                send_consul_notification(consul_key, "completed")
+        # Send Consul notification if enabled
+        if consul_notification:
+            standardized_key = f"services/video-transcription/{job_id}"
+            send_consul_notification(standardized_key, "completed")
 
         # Clean up temporary files
         os.remove(local_audio_path)
@@ -163,9 +155,11 @@ async def transcribe(request: TranscriptionRequest, background_tasks: Background
         request.input_s3_path,
         request.output_s3_path,
         request.webhook_url,
-        request.consul_key,
+        request.consul_notification,
     )
-    return {"job_id": job_id}
+    # Return the standardized consul key for the client
+    consul_key = f"services/video-transcription/{job_id}" if request.consul_notification else None
+    return {"job_id": job_id, "consul_key": consul_key}
 
 @app.get("/status/{job_id}")
 async def status(job_id: str):
