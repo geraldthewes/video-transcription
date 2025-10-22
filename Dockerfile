@@ -14,4 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ /app/src
 
 # Run the application with ROOT_PATH set for load balancer compatibility
-CMD uvicorn src.main:app --host 0.0.0.0 --port $APP_PORT
+# Set environment variables for the application
+ENV APP_HOST=0.0.0.0
+ENV APP_PORT=8000
+ENV ROOT_PATH=""
+
+# Run the application with ROOT_PATH set for load balancer compatibility
+CMD uvicorn src.main:app --host $APP_HOST --port $APP_PORT
