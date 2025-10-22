@@ -11,25 +11,12 @@ from src.notifications import send_webhook_notification, send_consul_notificatio
 from src.config import ROOT_PATH
 
 # Configure the FastAPI app with proper path prefix for documentation
-# Check if we're running behind a proxy/load balancer with a path prefix
-root_path = ROOT_PATH
-if root_path and not root_path.startswith("/"):
-    root_path = "/" + root_path
-
-# Ensure root_path doesn't end with a slash
-if root_path.endswith("/"):
-    root_path = root_path.rstrip("/")
-
+# Set the root path to handle load balancer prefixes
 app = FastAPI(
     title="Video Transcription Service",
     description="A service for transcribing video/audio files using Whisper ASR models.",
     version="1.0.0",
-    # Set the root path to handle load balancer prefixes
-    root_path=root_path,
-    # Configure OpenAPI settings to work with path prefixes
-    openapi_url="/openapi.json" if not root_path else f"{root_path}/openapi.json",
-    docs_url="/docs" if not root_path else f"{root_path}/docs",
-    redoc_url="/redoc" if not root_path else f"{root_path}/redoc",
+    root_path=ROOT_PATH,
 )
 
 # Setup logging with custom formatting
