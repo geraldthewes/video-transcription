@@ -8,8 +8,25 @@ from src.s3 import download_file, upload_file
 from src.transcription import transcribe_audio
 from src.jobs import create_job, get_job_status, update_job_status
 from src.notifications import send_webhook_notification, send_consul_notification
+from src.config import ROOT_PATH
 
-app = FastAPI()
+# Configure the FastAPI app with proper path prefix for documentation
+# Check if we're running behind a proxy/load balancer with a path prefix
+root_path = ROOT_PATH
+if root_path and not root_path.startswith("/"):
+    root_path = "/" + root_path
+
+app = FastAPI(
+    title="Video Transcription Service",
+    description="A service for transcribing video/audio files using Whisper ASR models.",
+    version="1.0.0",
+    # Set the root path to handle load balancer prefixes
+    root_path=root_path,
+    # Configure OpenAPI settings to work with path prefixes
+    openapi_url="/openapi.json" if not root_path else f"{root_path}/openapi.json",
+    docs_url="/docs" if not root_path else f"{root_path}/docs",
+    redoc_url="/redoc" if not root_path else f"{root_path}/redoc",
+)
 
 # Setup logging with custom formatting
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()

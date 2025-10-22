@@ -13,5 +13,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application's code into the container
 COPY src/ /app/src
 
-# Run the application (shell form for env var expansion)
+# Run the application with ROOT_PATH set for load balancer compatibility
 CMD uvicorn src.main:app --host 0.0.0.0 --port $APP_PORT

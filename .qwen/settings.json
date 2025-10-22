@@ -5,7 +5,7 @@
   "mcpServers": {
     "serena": {
       "command": "/home/gerald/miniconda3/envs/video-batch/bin/uv",
-      "args": ["run", "--directory", "/home/gerald/software/serena", "serena", "start-mcp-server"],
+      "args": ["run", "--directory", "/home/gerald/software/serena", "serena", "start-mcp-server", "--project","/media/gerald/SSDT71/gerald/video-transcription"],
       "timeout": 30000,
       "trust": true
     }

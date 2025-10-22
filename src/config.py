@@ -12,3 +12,4 @@ CONSUL_PORT = int(os.getenv("CONSUL_PORT", 8500))
 # Application Configuration
 APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("APP_PORT", 8000))
+ROOT_PATH = os.getenv("ROOT_PATH", "")

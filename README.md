@@ -195,3 +195,18 @@ The script automatically normalizes URLs to ensure proper API endpoint construct
 ## License
 
 MIT
+
+## Documentation Fix
+
+When running behind a load balancer that prefixes all routes with `/transcribe`, the OpenAPI documentation endpoints (`/openapi.json`, `/docs`, `/redoc`) may not be accessible due to incorrect path resolution.
+
+To fix this issue, the application now properly handles path prefixes by:
+
+1. Setting the `ROOT_PATH` environment variable to `/transcribe`
+2. Configuring FastAPI to use the correct paths for documentation endpoints
+3. Ensuring that all API endpoints maintain their correct paths
+
+This allows the documentation to be accessible at:
+- `http://fabio.service.consul:9999/transcribe/docs`
+- `http://fabio.service.consul:9999/transcribe/redoc`
+- `http://fabio.service.consul:9999/transcribe/openapi.json`
