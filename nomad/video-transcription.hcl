@@ -1,6 +1,11 @@
 job "video-transcription" {
   datacenters = ["cluster"]
 
+  # force redeploy
+  meta {
+    redeploy_uuid = "${uuidv4()}"
+  }
+
   vault {
     policies = ["transcription-policy"]
   }

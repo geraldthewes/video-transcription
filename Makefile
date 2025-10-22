@@ -3,7 +3,7 @@
 
 build:
 	git push origin
-	jobforge submit-job --image-tags "latest" --watch deploy/build.yaml
+	jobforge submit-job --image-tags "latest" --watch --history deploy/build.yaml
 
 
 deploy:

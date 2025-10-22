@@ -82,3 +82,32 @@ I've created a Nomad job definition for the video transcription service. Let me 
 
   All changes have been made consistently across the codebase to ensure comprehensive logging. The service will now provide much more detailed information
   for troubleshooting and monitoring purposes.
+
+
+2025-10-22
+----------
+
+I've successfully committed the changes to fix the documentation issue with the /transcribe path prefix. Here's a summary of what was done:
+
+  Problem
+  When the service was accessed through a load balancer that adds a /transcribe prefix to all routes, the OpenAPI documentation endpoints (/openapi.json,
+  /docs, /redoc) were not accessible due to incorrect path resolution.
+
+  Solution
+  I made the following changes to fix the issue:
+
+   1. Updated `src/main.py`: Modified FastAPI configuration to properly handle root path prefixes for documentation endpoints
+   2. Added `ROOT_PATH` to `src/config.py`: Added configuration variable for the path prefix
+   3. Updated `Dockerfile`: Ensured proper environment variable handling
+   4. Modified `nomad/video-transcription.hcl`: Added ROOT_PATH environment variable set to /transcribe
+   5. Enhanced `README.md`: Added documentation about the fix and the URLs where documentation will be accessible
+
+  Result
+  The documentation endpoints are now accessible at:
+   - http://fabio.service.consul:9999/transcribe/docs
+   - http://fabio.service.consul:9999/transcribe/redoc
+   - http://fabio.service.consul:9999/transcribe/openapi.json
+
+  The solution is backward compatible and will work both when the service is accessed directly and when it's accessed through a load balancer with path
+  prefixes. The changes have been committed with a descriptive commit message explaining the problem and solution.
+
