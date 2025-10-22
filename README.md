@@ -74,6 +74,8 @@ docker run -d \
 
 ## API Endpoints
 
+Auto generated API [documentation][docs/api-docs.md]
+
 ### POST /transcribe
 
 Initiates a transcription job.
