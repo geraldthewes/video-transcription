@@ -1,4 +1,4 @@
-.PHONY: build deploy test
+.PHONY: build deploy test docs
 
 
 build:
@@ -21,3 +21,8 @@ test-poll:
 
 test-consul:
 	python scripts/transcribe.py -d --service-url fabio.service.consul:9999/transcribe --wait consul --input-s3-path $(INPUT_FILE)  --output-s3-path $(OUTPUT_FILE) 
+
+#npm install -g widdershins
+docs:
+	curl http://fabio.service.consul:9999/transcribe/openapi.json > docs/api.json
+	widdershins docs/api.json -o docs/api-docs.md
