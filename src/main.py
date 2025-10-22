@@ -16,6 +16,16 @@ root_path = ROOT_PATH
 if root_path and not root_path.startswith("/"):
     root_path = "/" + root_path
 
+# Configure the FastAPI app with proper path prefix for documentation
+# Check if we're running behind a proxy/load balancer with a path prefix
+root_path = ROOT_PATH
+if root_path and not root_path.startswith("/"):
+    root_path = "/" + root_path
+
+# Ensure root_path doesn't end with a slash
+if root_path.endswith("/"):
+    root_path = root_path.rstrip("/")
+
 app = FastAPI(
     title="Video Transcription Service",
     description="A service for transcribing video/audio files using Whisper ASR models.",
@@ -26,6 +36,16 @@ app = FastAPI(
     openapi_url="/openapi.json" if not root_path else f"{root_path}/openapi.json",
     docs_url="/docs" if not root_path else f"{root_path}/docs",
     redoc_url="/redoc" if not root_path else f"{root_path}/redoc",
+) = FastAPI(
+    title="Video Transcription Service",
+    description="A service for transcribing video/audio files using Whisper ASR models.",
+    version="1.0.0",
+    # Set the root path to handle load balancer prefixes
+    root_path=root_path,
+    # Configure OpenAPI settings to work with path prefixes
+    openapi_url="/openapi.json" if not root_path else f"{root_path.rstrip('/')}/openapi.json",
+    docs_url="/docs" if not root_path else f"{root_path.rstrip('/')}/docs",
+    redoc_url="/redoc" if not root_path else f"{root_path.rstrip('/')}/redoc",
 )
 
 # Setup logging with custom formatting
