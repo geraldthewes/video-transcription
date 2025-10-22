@@ -1,7 +1,7 @@
 ***BUILD INSTRUCTIONS***
 
 
-You must commit any changes to git before laucnhing a new build
+You must commit any changes to git before launching a new build
 
 You must rebuild the docker image using the Makefile
 ```
