@@ -13,7 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application's code into the container
 COPY src/ /app/src
 
-# Run the application with ROOT_PATH set for load balancer compatibility
 # Set environment variables for the application
 ENV APP_HOST=0.0.0.0
 ENV APP_PORT=8000
