@@ -55,7 +55,7 @@ job "video-transcription" {
         # Application Configuration
         APP_HOST              = "0.0.0.0"
         APP_PORT              = "${NOMAD_PORT_http}"  # dynamic port here
-	# ROOT_PATH             = "/transcribe"  # Commented out to allow direct access to endpoints
+	ROOT_PATH             = "/transcribe"
 
 	# LOG_LEVEL
 	LOG_LEVEL             = "debug"
@@ -99,7 +99,7 @@ EOF
 
        tags = [
         "video-transcription",
-        ""
+        "urlprefix-/transcribe strip=/transcribe"
       ]
       }
     }

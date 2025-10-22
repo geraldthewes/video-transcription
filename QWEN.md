@@ -34,3 +34,7 @@ Logs on the server can be retrieved using nomad
  nomad alloc logs --stderr {Allocation Id}
 ```
 
+If dealing with fabio, routes can be reviewed using
+```
+curl http://fabio.service.consul:9998/api/routes
+```
