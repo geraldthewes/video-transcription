@@ -99,8 +99,7 @@ EOF
 
        tags = [
         "video-transcription",
-        "",
-        "urlprefix-/transcribe strip=/transcribe"
+        ""
       ]
       }
     }
