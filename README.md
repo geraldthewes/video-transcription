@@ -30,6 +30,8 @@ docker build -t video-transcription .
 
 ### Running the Container
 
+#### Locally
+
 ```bash
 docker run -d \
   --name video-transcription \
@@ -42,6 +44,11 @@ docker run -d \
   -e APP_HOST="0.0.0.0" \
   -e APP_PORT="8000" \
   video-transcription
+```
+#### Nomad
+
+```
+nomad run nomad/video-transcription.hcl
 ```
 
 ### Environment Variables
@@ -125,6 +132,11 @@ Health check endpoint.
 
 ## Development
 
+### Makefile
+
+Best for development is to use the Makefile
+
+
 ### Running Locally
 
 1. Install dependencies:
@@ -151,7 +163,7 @@ The `scripts/transcribe.py` script provides a command-line interface for transcr
 #### Usage
 
 ```bash
-python scripts/transcribe.py --service-url "fabio.service.consul:9999" --input-s3-path "s3://bucket-name/input-file.mp3" --output-s3-path "s3://bucket-name/output-file.txt"
+python scripts/transcribe.py --service-url "fabio.service.consul:9999/transcribe" --input-s3-path "s3://bucket-name/input-file.mp3" --output-s3-path "s3://bucket-name/output-file.txt"
 ```
 
 #### Requirements

@@ -1,13 +1,24 @@
 {
-  "apiKey": "***",
-  "base_url": "http://10.0.1.14:8000/v1",
-  "sessionTokenLimit": " 131072",
   "mcpServers": {
     "serena": {
       "command": "/home/gerald/miniconda3/envs/video-batch/bin/uv",
-      "args": ["run", "--directory", "/home/gerald/software/serena", "serena", "start-mcp-server", "--project","/media/gerald/SSDT71/gerald/video-transcription"],
+      "args": [
+        "run",
+        "--directory",
+        "/home/gerald/software/serena",
+        "serena",
+        "start-mcp-server",
+        "--project",
+        "/media/gerald/SSDT71/gerald/video-transcription"
+      ],
       "timeout": 30000,
       "trust": true
     }
-  }
+  },
+  "model": {
+    "sessionTokenLimit": " 131072"
+  },
+  "apiKey": "***",
+  "base_url": "http://10.0.1.14:8000/v1",
+  "$version": 2
 }
