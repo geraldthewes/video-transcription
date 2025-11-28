@@ -73,7 +73,7 @@ def parse_consul_address(consul_http_addr):
     """
     if not consul_http_addr:
         return "localhost", 8500
-    
+
     # Handle http:// format
     if consul_http_addr.startswith("http://"):
         # Remove "http://" prefix
@@ -83,7 +83,7 @@ def parse_consul_address(consul_http_addr):
             return host, int(port_str)
         else:
             return addr, 8500
-    
+
     # Handle https:// format
     elif consul_http_addr.startswith("https://"):
         # Remove "https://" prefix
@@ -93,12 +93,12 @@ def parse_consul_address(consul_http_addr):
             return host, int(port_str)
         else:
             return addr, 8500
-    
+
     # Handle simple host:port format
     elif ":" in consul_http_addr:
         host, port_str = consul_http_addr.split(":", 1)
         return host, int(port_str)
-    
+
     # Just host
     else:
         return consul_http_addr, 8500
@@ -111,11 +111,11 @@ def normalize_service_url(service_url):
     """
     # Remove trailing slashes
     service_url = service_url.rstrip('/')
-    
+
     # If no scheme is present, assume HTTP
     if not service_url.startswith(('http://', 'https://')):
         service_url = f"http://{service_url}"
-    
+
     return service_url
 
 def call_transcription_api(service_url, input_s3_path, output_s3_path, webhook_url=None, consul_key=None, consul_notification=False, debug=False):
@@ -195,32 +195,31 @@ def wait_for_job_completion_polling(service_url, job_id, timeout=300, debug=Fals
     """
     # Normalize the service URL
     normalized_url = normalize_service_url(service_url)
-    
-    # Extract the base URL part (before /transcribe)
-    base_url = normalized_url
-    if '/transcribe' in normalized_url:
-        # Remove the /transcribe part to get the base URL
-        if normalized_url.endswith('/transcribe'):
-            base_url = normalized_url[:-len('/transcribe')]
-        else:
-            # Find the position of /transcribe and split
-            pos = normalized_url.find('/transcribe')
-            base_url = normalized_url[:pos]
-    
+
+    # Remove any trailing slashes
+    normalized_url = normalized_url.rstrip('/')
+
+    # Construct the final status endpoint - avoid duplication
+    # If the URL already ends with /transcribe, we need to remove it to get base URL
+    if normalized_url.endswith('/transcribe'):
+        base_url = normalized_url[:-len('/transcribe')]
+    else:
+        base_url = normalized_url
+
     # Construct the final status endpoint
     # The status URL should be: http://fabio.service.consul:9999/transcribe/status/{job_id}
     if base_url.endswith('/'):
         status_url = f"{base_url}transcribe/status/{job_id}"
     else:
         status_url = f"{base_url}/transcribe/status/{job_id}"
-    
+
     # Ensure we don't have double slashes
     if '//transcribe' in status_url:
         status_url = status_url.replace('//transcribe', '/transcribe')
-    
+
     if debug:
         print(f"DEBUG: Polling status endpoint: {status_url}")
-    
+
     start_time = datetime.now()
     while (datetime.now() - start_time).seconds < timeout:
         try:
@@ -229,20 +228,20 @@ def wait_for_job_completion_polling(service_url, job_id, timeout=300, debug=Fals
                 print(f"DEBUG: Status poll response status code: {response.status_code}")
                 if response.status_code != 200:
                     print(f"DEBUG: Status poll response body: {response.text}")
-            
+
             if response.status_code == 200:
                 data = response.json()
                 status = data.get("status")
-                
+
                 if debug:
                     print(f"DEBUG: Job status: {status}")
                     print(f"DEBUG: Full status data: {data}")
-                
+
                 if status == "completed":
                     return "completed", data.get("result")
                 elif status == "failed":
                     return "failed", data.get("result")
-            
+
             # Wait before polling again
             time.sleep(2)
         except Exception as e:
@@ -259,41 +258,51 @@ def wait_for_job_completion_consul(consul_key, timeout=300, debug=False):
     try:
         # Import consul after ensuring it's available
         import consul
-        
-        # Try to get Consul configuration from environment
-        # The error suggests the python-consul library has strict requirements
-        # Let's try the most basic approach that should work with most setups
+
+        # Fix for CONSUL_HTTP_ADDR environment variable parsing issue
+        # The python-consul library expects CONSUL_HTTP_ADDR to be in host:port format
+        # but the user has it set to http://10.0.1.12:8500
+        # We'll sanitize the environment variable before creating the Consul client
+
+        # Get CONSUL_HTTP_ADDR from environment
+        consul_http_addr = os.getenv("CONSUL_HTTP_ADDR", "")
+
+        # If CONSUL_HTTP_ADDR is set to a URL format, sanitize it
+        if consul_http_addr and consul_http_addr.startswith("http"):
+            # Remove protocol prefix to make it compatible with python-consul
+            if consul_http_addr.startswith("http://"):
+                sanitized_addr = consul_http_addr[7:]  # Remove "http://"
+            elif consul_http_addr.startswith("https://"):
+                sanitized_addr = consul_http_addr[8:]  # Remove "https://"
+            else:
+                sanitized_addr = consul_http_addr
+
+            # Set the sanitized version for the consul library
+            os.environ["CONSUL_HTTP_ADDR"] = sanitized_addr
+            if debug:
+                print(f"DEBUG: Sanitized CONSUL_HTTP_ADDR from '{consul_http_addr}' to '{sanitized_addr}'")
+
+        # Create Consul client - this should now work with the sanitized environment
         try:
-            # Try with just the default Consul client
             consul_client = consul.Consul()
             if debug:
-                print("DEBUG: Successfully created Consul client with default settings")
+                print("DEBUG: Successfully created Consul client with sanitized environment")
         except Exception as e:
-            # If that fails, try with explicit localhost
             if debug:
-                print(f"DEBUG: Failed to create Consul client with default, trying with localhost: {e}")
-            try:
-                # Try with just the host parameter
-                consul_client = consul.Consul(host="localhost")
-                if debug:
-                    print("DEBUG: Successfully created Consul client with localhost")
-            except Exception as e2:
-                # If that also fails, try with just the host
-                if debug:
-                    print(f"DEBUG: Failed to create Consul client with localhost, falling back to just host: {e2}")
-                # Try with just the host parameter
-                consul_client = consul.Consul(host="localhost")
-        
+                print(f"DEBUG: Failed to create Consul client with sanitized env: {e}")
+                print("DEBUG: Falling back to localhost:8500")
+            # Fall back to default Consul client with localhost:8500
+            consul_client = consul.Consul(host="localhost", port=8500)
+
         start_time = datetime.now()
         while (datetime.now() - start_time).seconds < timeout:
             try:
                 # Check if the key exists and has a value
                 index, data = consul_client.kv.get(consul_key)
-                
+
                 if debug:
                     print(f"DEBUG: Consul key check - Index: {index}, Data: {data}")
-                
-                # If data is not None, it means the key exists
+
                 # If data is not None, it means the key exists
                 if data is not None:
                     # Decode the data if it's bytes
@@ -305,7 +314,7 @@ def wait_for_job_completion_consul(consul_key, timeout=300, debug=False):
                                 decoded_value = value.decode('utf-8')
                                 if debug:
                                     print(f"DEBUG: Decoded value: {decoded_value}")
-                                
+
                                 # Check if the value is a simple string like "completed"
                                 if decoded_value.strip() == "completed":
                                     if debug:
@@ -319,10 +328,10 @@ def wait_for_job_completion_consul(consul_key, timeout=300, debug=False):
                                     # Parse the JSON to check status
                                     result_data = json.loads(decoded_value)
                                     status = result_data.get("status")
-                                    
+
                                     if debug:
                                         print(f"DEBUG: Status from Consul: {status}")
-                                    
+
                                     if status == "completed":
                                         return "completed", result_data.get("result")
                                     elif status == "failed":
@@ -332,14 +341,14 @@ def wait_for_job_completion_consul(consul_key, timeout=300, debug=False):
                                     print(f"DEBUG: Error parsing Consul data: {e}")
                                 if debug:
                                     print(f"DEBUG: Error parsing Consul data: {e}")
-                
+
                 # Wait before checking again
                 time.sleep(2)
             except Exception as e:
                 if debug:
                     print(f"DEBUG: Error checking Consul key: {e}")
                 time.sleep(2)
-        
+
         return "timeout", None
     except Exception as e:
         print(f"Error initializing Consul client: {e}")
