@@ -28,8 +28,8 @@ def test_transcription_workflow():
         response = requests.post(
             f"{BASE_URL}/transcribe",
             json={
-                "input_file": INPUT_FILE,
-                "output_file": OUTPUT_FILE
+                "input_s3_path": INPUT_FILE,
+                "output_s3_path": OUTPUT_FILE
             }
         )
         
