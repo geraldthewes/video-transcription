@@ -6,10 +6,11 @@ image_name: video-transcription-ws
 image_tags:
   - latest
 registry_url: registry.cluster:5000
-notest:
-  entry_point: true
+test:
+  entry_point: false
   gpu_required: true
   env:
+    ROOT_PATH: "/"
     S3_TRANSCRIBER_BUCKET: "ai-storage"
     S3_TRANSCRIBER_PREFIX: "transcriber"
     AWS_REGION: "us-east-1"
@@ -24,6 +25,9 @@ notest:
   - path: "secret/data/hf/transcription"
     fields:
       token: "HF_TOKEN"
+  python_cwd: "tests"
+  python_command: "python-executor run --requirements requirements.txt --file test.py" 
+  container_port: 8000
 resource_limits:
   build:
     cpu: "8000"

@@ -19,4 +19,4 @@ ENV APP_PORT=8000
 ENV ROOT_PATH=""
 
 # Run the application with ROOT_PATH set for load balancer compatibility
-CMD uvicorn src.main:app --host $APP_HOST --port $APP_PORT --root-path $ROOT_PATH
+CMD uvicorn src.main:app --host $APP_HOST --port $APP_PORT ${ROOT_PATH:+--root-path $ROOT_PATH}
