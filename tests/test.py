@@ -7,6 +7,7 @@ This script tests the transcription workflow:
 3. Verifies output file creation
 """
 
+import os
 import requests
 import time
 import sys
@@ -19,8 +20,22 @@ OUTPUT_FILE = 's3://ai-storage/transcriber/tests/output001.md'
 def test_transcription_workflow():
     """Test the complete transcription workflow."""
 
-    # Base URL for the transcription service
-    BASE_URL = "http://fabio.service.consul:9999/transcribe"
+    # Construct BASE_URL from environment variables
+    service_host = os.environ.get('SERVICE_HOST', '')
+    service_port = os.environ.get('SERVICE_PORT', '9999')
+    service_prefix = os.environ.get('SERVICE_PREFIX', '')
+
+    if service_host:
+        # Build URL from environment variables
+        BASE_URL = f"http://{service_host}:{service_port}"
+        if service_prefix:
+            BASE_URL += f"/{service_prefix}"
+    else:
+        # Fallback to original URL
+        BASE_URL = "http://fabio.service.consul:9999/transcribe"
+
+    # Print the constructed URL
+    print(f"Using BASE_URL: {BASE_URL}")
 
     # Step 1: Submit transcription job
     print("Submitting transcription job...")
