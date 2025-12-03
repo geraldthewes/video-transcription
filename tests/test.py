@@ -50,20 +50,20 @@ def test_transcription_workflow():
     print("Polling for job status...")
     max_polls = 30  # Maximum polls (30 * 2 seconds = 60 seconds max)
     poll_interval = 2  # seconds between polls
-    
+
     for i in range(max_polls):
         try:
-            status_response = requests.get(f"{BASE_URL}/jobs/{job_id}")
-            
+            status_response = requests.get(f"{BASE_URL}/status/{job_id}")
+
             if status_response.status_code != 200:
                 print(f"Failed to get job status: {status_response.status_code}")
                 return False
-                
+
             status_data = status_response.json()
             status = status_data.get('status', '')
-            
+
             print(f"Job status: {status}")
-            
+
             if status == 'completed':
                 print("Job completed successfully!")
                 break
@@ -74,11 +74,11 @@ def test_transcription_workflow():
                 print("Job is still running...")
             else:
                 print(f"Unexpected job status: {status}")
-                
+
         except Exception as e:
             print(f"Error polling for job status: {e}")
             return False
-            
+
         # Wait before next poll
         time.sleep(poll_interval)
     else:
