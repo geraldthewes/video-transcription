@@ -9,7 +9,7 @@
         "serena",
         "start-mcp-server",
         "--project",
-        "/media/gerald/SSDT71/gerald/video-transcription"
+        "/media/gerald/SSDT7/gerald/video-transcription"
       ],
       "timeout": 30000,
       "trust": true
