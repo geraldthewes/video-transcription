@@ -14,9 +14,23 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ /app/src
 
 # Set environment variables for the application
+# Application Configuration
 ENV APP_HOST=0.0.0.0
 ENV APP_PORT=8000
 ENV ROOT_PATH=""
+ENV LOG_LEVEL="INFO"
+
+# AWS Configuration
+ENV AWS_ACCESS_KEY_ID=""
+ENV AWS_SECRET_ACCESS_KEY=""
+ENV AWS_REGION="us-east-1"
+ENV S3_ENDPOINT=""
+
+# Consul Configuration
+ENV CONSUL_HOST="localhost"
+ENV CONSUL_PORT="8500"
+
+
 
 # Run the application with ROOT_PATH set for load balancer compatibility
 CMD uvicorn src.main:app --host $APP_HOST --port $APP_PORT ${ROOT_PATH:+--root-path $ROOT_PATH}
