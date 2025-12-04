@@ -111,3 +111,42 @@ I've successfully committed the changes to fix the documentation issue with the 
   The solution is backward compatible and will work both when the service is accessed directly and when it's accessed through a load balancer with path
   prefixes. The changes have been committed with a descriptive commit message explaining the problem and solution.
 
+Recommendations for Improving the Web Service Container
+
+   1. Add Health Check Endpoint:
+
+   1    HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+   2      CMD curl -f http://localhost:8000/health || exit 1
+     This adds a health check endpoint that monitors the service's availability. The service already has a /health endpoint, so this would properly
+  utilize it.
+
+   2. Optimize for Production with Gunicorn:
+
+   1    # Use production-grade gunicorn instead of uvicorn directly
+   2    # Install gunicorn and modify CMD to use gunicorn
+   3    RUN pip install gunicorn
+   4    CMD gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.main:app
+     This improves performance by using gunicorn as a production WSGI server with multiple worker processes, which is more efficient than running uvicorn
+  directly.
+
+   3. Add User/Group for Security:
+
+   1    # Add a non-root user for security
+   2    RUN addgroup --system appgroup && \
+   3        adduser --system appuser && \
+   4        chown -R appuser:appgroup /app
+   5    USER appuser
+     This enhances security by running the application as a non-root user, reducing potential attack surface.
+
+  Additional Observations About the Service
+
+  The service is a FastAPI-based web service that:
+   - Provides transcription functionality for video/audio files
+   - Uses S3 for file storage
+   - Supports background processing with job status tracking
+   - Has endpoints for transcription submission, status checking, and health monitoring
+   - Is designed to work with Consul for service discovery and notifications
+   - Uses environment variables for configuration (host, port, root path)
+
+  The current Dockerfile is functional but could benefit from these production-ready improvements for better security, performance, and maintainability.
+
