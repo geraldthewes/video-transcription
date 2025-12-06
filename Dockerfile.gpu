@@ -31,7 +31,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install Python 3.12 and required packages in the final stage
 RUN apt-get update && apt-get install -y \
     python3.12 \
-    python3.12-pip \
+    python3-pip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 RUN rm /usr/lib/python3.12/EXTERNALLY-MANAGED
