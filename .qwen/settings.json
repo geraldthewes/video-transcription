@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "serena": {
-      "command": "/home/gerald/.local/bin/uvx",
+      "command": "/home/gerald/.local/bin/uv",
       "args": [
         "run",
         "--directory",
@@ -9,7 +9,7 @@
         "serena",
         "start-mcp-server",
         "--project",
-        "."
+        "/home/gerald/repos/video-transcription"
       ],
       "timeout": 30000,
       "trust": true
