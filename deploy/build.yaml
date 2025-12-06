@@ -1,7 +1,7 @@
 owner: code-agent
 repo_url: https://github.com/geraldthewes/video-transcription.git
 git_ref: main
-dockerfile_path: Dockerfile
+dockerfile_path: Dockerfile.gpu
 image_name: video-transcription-ws
 image_tags:
   - latest

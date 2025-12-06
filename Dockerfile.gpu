@@ -1,0 +1,52 @@
+# Build stage
+FROM docker.io/nvidia/cuda:12.8.0-base-ubuntu24.04 AS builder
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    python3.12-dev \
+    python3-pip \
+    gcc \
+    git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN rm /usr/lib/python3.12/EXTERNALLY-MANAGED
+
+# Install PyTorch for CUDA 12.8
+RUN pip3 install --no-cache-dir torch==2.8.0+cu128 --index-url https://download.pytorch.org/whl/cu128
+
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the requirements file into the container
+COPY requirements.txt .
+
+RUN pip3 install --no-cache-dir -r requirements.txt
+# Ensure temp directories exist and download SpaCy model
+RUN mkdir -p /tmp /var/tmp 
+
+# Final stage
+FROM docker.io/nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
+
+# Copy the rest of the application's code into the container
+COPY src/ /app/src
+
+# Set environment variables for the application
+# Application Configuration
+ENV APP_HOST=0.0.0.0
+ENV APP_PORT=8000
+ENV ROOT_PATH=""
+ENV LOG_LEVEL="INFO"
+
+# AWS Configuration
+ENV AWS_ACCESS_KEY_ID=""
+ENV AWS_SECRET_ACCESS_KEY=""
+ENV AWS_REGION="us-east-1"
+ENV S3_ENDPOINT=""
+
+# Consul Configuration
+ENV CONSUL_HOST="localhost"
+ENV CONSUL_PORT="8500"
+
+# Run the application with ROOT_PATH set for load balancer compatibility
+CMD uvicorn src.main:app --host $APP_HOST --port $APP_PORT ${ROOT_PATH:+--root-path $ROOT_PATH}
