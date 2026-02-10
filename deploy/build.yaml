@@ -26,7 +26,8 @@ test:
     fields:
       token: "HF_TOKEN"
   python_cwd: "tests"
-  python_command: "python-executor run --requirements requirements.txt --file test.py" 
+  python_file: "test.py"
+  python_requirements: "requirements.txt"
   container_port: 8000
 resource_limits:
   build:

@@ -18,12 +18,57 @@ job "video-transcription" {
       value     = "true"
     }
 
+    # Exclude dedicated GPU nodes (shared pool only)
+    constraint {
+      attribute = "${meta.gpu-dedicated}"
+      operator  = "!="
+      value     = "true"
+    }
+
+    # Only schedule on nodes with HuggingFace cache storage
+    constraint {
+      attribute = "${meta.hf-cache-storage}"
+      value     = "true"
+    }
+
+
+    volume "huggingface_cache" {
+      type      = "host"
+      source    = "huggingface-cache"
+      read_only = false
+    }
 
     network {
       mode = "host"
-      port "http" {}  # Dynamic port allocation; no 'static' or 'to'	 
+      port "http" {}  # Dynamic port allocation; no 'static' or 'to'
     }
 
+
+    task "init-hf-cache" {
+      lifecycle {
+        hook    = "prestart"
+        sidecar = false
+      }
+
+      driver = "docker"
+
+      config {
+        image   = "busybox:latest"
+        command = "/bin/sh"
+        args    = ["-c", "mkdir -p /cache/hub && chown -R 1000:1000 /cache"]
+      }
+
+      volume_mount {
+        volume      = "huggingface_cache"
+        destination = "/cache"
+        read_only   = false
+      }
+
+      resources {
+        cpu    = 50
+        memory = 32
+      }
+    }
 
     task "server" {
       driver = "docker"
@@ -34,11 +79,16 @@ job "video-transcription" {
       }
 
       config {
-        image = "registry.cluster:5000/video-transcription-ws:latest"
-	network_mode = "host"  # Align Docker with Nomad's host mode
-        #volumes = [
-        #  "/tmp:/tmp",
-        #]
+        image        = "registry.cluster:5000/video-transcription-ws:latest"
+        force_pull   = true   # Required for :latest tag updates
+        network_mode = "host" # Align Docker with Nomad's host mode
+        runtime      = "nvidia" # Required for GPU support
+      }
+
+      volume_mount {
+        volume      = "huggingface_cache"
+        destination = "/root/.cache/huggingface"
+        read_only   = false
       }
       
       env {
