@@ -30,7 +30,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 
 # Install Python 3.12 and required packages in the final stage
-RUN apt-get update && apt-get install -y \
+RUN mkdir -p /var/cache/apt/archives/partial && \
+    apt-get update && apt-get install -y \
     python3.12 \
     python3-pip \
     && apt-get clean \
